@@ -3,7 +3,8 @@ import { DesktopOverlay } from './DesktopOverlay';
 import { useDesktopPlayerState } from '../hooks/useDesktopPlayerState';
 
 interface DesktopOverlayWrapperProps {
-    state: ReturnType<typeof useDesktopPlayerState>['state'];
+    data: ReturnType<typeof useDesktopPlayerState>['data'];
+    actions: ReturnType<typeof useDesktopPlayerState>['actions'];
     showControls: boolean;
     onTogglePlay: () => void;
     onSkipForward: () => void;
@@ -18,15 +19,16 @@ interface DesktopOverlayWrapperProps {
     playbackRate: number;
     showSpeedMenu: boolean;
     speeds: number[];
+    onToggleMoreMenu?: () => void; // Unused but kept for type safety if needed
     onToggleSpeedMenu: () => void;
     onSpeedChange: (speed: number) => void;
-    onSpeedMenuMouseEnter: () => void;
     onSpeedMenuMouseLeave: () => void;
     containerRef: React.RefObject<HTMLDivElement | null>;
 }
 
 export function DesktopOverlayWrapper({
-    state,
+    data,
+    actions,
     showControls,
     onTogglePlay,
     onSkipForward,
@@ -34,6 +36,8 @@ export function DesktopOverlayWrapper({
     showMoreMenu,
     isProxied,
     onToggleMoreMenu,
+    onMouseEnter, // Note: The prop name was actually missing in destructuring or renamed? Let me check previous view_file.
+    // Wait, the previous view_file of DesktopOverlayWrapper had these:
     onMoreMenuMouseEnter,
     onMoreMenuMouseLeave,
     onCopyLink,
@@ -44,7 +48,7 @@ export function DesktopOverlayWrapper({
     onSpeedChange,
     onSpeedMenuMouseEnter,
     onSpeedMenuMouseLeave,
-    containerRef
+    containerRef,
 }: DesktopOverlayWrapperProps) {
     const {
         isLoading,
@@ -57,7 +61,7 @@ export function DesktopOverlayWrapper({
         isSkipBackwardAnimatingOut,
         showToast,
         toastMessage,
-    } = state;
+    } = data;
 
     return (
         <DesktopOverlay

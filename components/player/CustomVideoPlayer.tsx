@@ -14,6 +14,7 @@ interface CustomVideoPlayerProps {
   totalEpisodes?: number;
   currentEpisodeIndex?: number;
   onNextEpisode?: () => void;
+  isReversed?: boolean;
 }
 
 /**

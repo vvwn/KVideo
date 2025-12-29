@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { formatTime } from '@/lib/utils/format-utils';
 import { usePlaybackPolling } from '../usePlaybackPolling';
 
@@ -135,7 +135,7 @@ export function usePlaybackControls({
         setIsPlaying
     });
 
-    return {
+    const playbackActions = useMemo(() => ({
         togglePlay,
         handlePlay,
         handlePause,
@@ -144,5 +144,15 @@ export function usePlaybackControls({
         handleVideoError,
         changePlaybackSpeed,
         formatTime
-    };
+    }), [
+        togglePlay,
+        handlePlay,
+        handlePause,
+        handleTimeUpdateEvent,
+        handleLoadedMetadata,
+        handleVideoError,
+        changePlaybackSpeed
+    ]);
+
+    return playbackActions;
 }

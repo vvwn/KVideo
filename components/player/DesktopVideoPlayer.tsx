@@ -19,6 +19,7 @@ interface DesktopVideoPlayerProps {
   totalEpisodes?: number;
   currentEpisodeIndex?: number;
   onNextEpisode?: () => void;
+  isReversed?: boolean;
 }
 
 export function DesktopVideoPlayer({
@@ -31,8 +32,9 @@ export function DesktopVideoPlayer({
   totalEpisodes = 1,
   currentEpisodeIndex = 0,
   onNextEpisode,
+  isReversed = false,
 }: DesktopVideoPlayerProps) {
-  const { refs, state } = useDesktopPlayerState();
+  const { refs, data, actions } = useDesktopPlayerState();
 
   // Initialize HLS Player
   useHlsPlayer({
@@ -50,9 +52,14 @@ export function DesktopVideoPlayer({
     isPlaying,
     currentTime,
     duration,
+  } = data;
+
+  const {
     setShowControls,
     setIsLoading,
-  } = state;
+    setCurrentTime,
+    setDuration,
+  } = actions;
 
   // Reset loading state and show spinner when source changes
   React.useEffect(() => {
@@ -66,11 +73,12 @@ export function DesktopVideoPlayer({
     onError,
     onTimeUpdate,
     refs,
-    state
+    data,
+    actions
   });
 
   // Auto-skip intro/outro and auto-next episode
-  useAutoSkip({
+  const { isOutroActive } = useAutoSkip({
     videoRef,
     currentTime,
     duration,
@@ -78,6 +86,8 @@ export function DesktopVideoPlayer({
     totalEpisodes,
     currentEpisodeIndex,
     onNextEpisode,
+    isReversed,
+    src,
   });
 
   const {
@@ -114,15 +124,16 @@ export function DesktopVideoPlayer({
       />
 
       <DesktopOverlayWrapper
-        state={state}
-        showControls={state.showControls}
+        data={data}
+        actions={actions}
+        showControls={data.showControls}
         onTogglePlay={togglePlay}
         onSkipForward={logic.skipForward}
         onSkipBackward={logic.skipBackward}
         // More Menu Props
-        showMoreMenu={state.showMoreMenu}
+        showMoreMenu={data.showMoreMenu}
         isProxied={src.includes('/api/proxy')}
-        onToggleMoreMenu={() => state.setShowMoreMenu(!state.showMoreMenu)}
+        onToggleMoreMenu={() => actions.setShowMoreMenu(!data.showMoreMenu)}
         onMoreMenuMouseEnter={() => {
           if (refs.moreMenuTimeoutRef.current) {
             clearTimeout(refs.moreMenuTimeoutRef.current);
@@ -134,16 +145,16 @@ export function DesktopVideoPlayer({
             clearTimeout(refs.moreMenuTimeoutRef.current);
           }
           refs.moreMenuTimeoutRef.current = setTimeout(() => {
-            state.setShowMoreMenu(false);
+            actions.setShowMoreMenu(false);
             refs.moreMenuTimeoutRef.current = null;
           }, 800); // Increased timeout for better stability
         }}
         onCopyLink={logic.handleCopyLink}
         // Speed Menu Props
-        playbackRate={state.playbackRate}
-        showSpeedMenu={state.showSpeedMenu}
+        playbackRate={data.playbackRate}
+        showSpeedMenu={data.showSpeedMenu}
         speeds={[0.5, 0.75, 1, 1.25, 1.5, 2]}
-        onToggleSpeedMenu={() => state.setShowSpeedMenu(!state.showSpeedMenu)}
+        onToggleSpeedMenu={() => actions.setShowSpeedMenu(!data.showSpeedMenu)}
         onSpeedChange={logic.changePlaybackSpeed}
         onSpeedMenuMouseEnter={logic.clearSpeedMenuTimeout}
         onSpeedMenuMouseLeave={logic.startSpeedMenuTimeout}
@@ -153,7 +164,8 @@ export function DesktopVideoPlayer({
 
       <DesktopControlsWrapper
         src={src}
-        state={state}
+        data={data}
+        actions={actions}
         logic={logic}
         refs={refs}
       />

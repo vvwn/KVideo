@@ -1,18 +1,20 @@
 'use client';
 
-import { Suspense, useEffect } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { VideoPlayer } from '@/components/player/VideoPlayer';
 import { VideoMetadata } from '@/components/player/VideoMetadata';
 import { EpisodeList } from '@/components/player/EpisodeList';
 import { PlayerError } from '@/components/player/PlayerError';
+import { SourceSelector, SourceInfo } from '@/components/player/SourceSelector';
 import { useVideoPlayer } from '@/lib/hooks/useVideoPlayer';
 import { useHistoryStore } from '@/lib/store/history-store';
 import { WatchHistorySidebar } from '@/components/history/WatchHistorySidebar';
 import { FavoritesSidebar } from '@/components/favorites/FavoritesSidebar';
 import { FavoriteButton } from '@/components/favorites/FavoriteButton';
 import { PlayerNavbar } from '@/components/player/PlayerNavbar';
+import { settingsStore } from '@/lib/store/settings-store';
 import Image from 'next/image';
 
 function PlayerContent() {
@@ -24,6 +26,30 @@ function PlayerContent() {
   const source = searchParams.get('source');
   const title = searchParams.get('title');
   const episodeParam = searchParams.get('episode');
+  const groupedSourcesParam = searchParams.get('groupedSources');
+
+  // Parse grouped sources if available
+  const groupedSources = useMemo<SourceInfo[]>(() => {
+    if (!groupedSourcesParam) return [];
+    try {
+      return JSON.parse(groupedSourcesParam);
+    } catch {
+      return [];
+    }
+  }, [groupedSourcesParam]);
+
+  // Track current source for switching
+  const [currentSourceId, setCurrentSourceId] = useState(source);
+
+  // Track settings
+  const [isReversed, setIsReversed] = useState(() =>
+    typeof window !== 'undefined' ? settingsStore.getSettings().episodeReverseOrder : false
+  );
+
+  // Sync with store changes if any (though usually it's one-way from UI to store)
+  useEffect(() => {
+    setIsReversed(settingsStore.getSettings().episodeReverseOrder);
+  }, []);
 
   // Redirect if no video ID or source
   if (!videoId || !source) {
@@ -41,7 +67,7 @@ function PlayerContent() {
     setPlayUrl,
     setVideoError,
     fetchVideoDetails,
-  } = useVideoPlayer(videoId, source, episodeParam);
+  } = useVideoPlayer(videoId, source, episodeParam, isReversed);
 
   // Add initial history entry when video data is loaded
   useEffect(() => {
@@ -78,12 +104,29 @@ function PlayerContent() {
     router.replace(`/player?${params.toString()}`, { scroll: false });
   };
 
+  const handleToggleReverse = (reversed: boolean) => {
+    setIsReversed(reversed);
+    const settings = settingsStore.getSettings();
+    settingsStore.saveSettings({
+      ...settings,
+      episodeReverseOrder: reversed
+    });
+  };
+
   // Handle auto-next episode
   const handleNextEpisode = () => {
     const episodes = videoData?.episodes;
-    if (!episodes || currentEpisode >= episodes.length - 1) return;
+    if (!episodes) return;
 
-    const nextIndex = currentEpisode + 1;
+    let nextIndex;
+    if (!isReversed) {
+      if (currentEpisode >= episodes.length - 1) return;
+      nextIndex = currentEpisode + 1;
+    } else {
+      if (currentEpisode <= 0) return;
+      nextIndex = currentEpisode - 1;
+    }
+
     const nextEpisode = episodes[nextIndex];
     if (nextEpisode) {
       handleEpisodeClick(nextEpisode, nextIndex);
@@ -118,6 +161,7 @@ function PlayerContent() {
                 onBack={() => router.back()}
                 totalEpisodes={videoData?.episodes?.length || 1}
                 onNextEpisode={handleNextEpisode}
+                isReversed={isReversed}
               />
               <VideoMetadata
                 videoData={videoData}
@@ -144,13 +188,39 @@ function PlayerContent() {
               )}
             </div>
 
-            {/* Episodes Sidebar */}
+            {/* Sidebar with sticky wrapper */}
             <div className="lg:col-span-1">
-              <EpisodeList
-                episodes={videoData?.episodes || null}
-                currentEpisode={currentEpisode}
-                onEpisodeClick={handleEpisodeClick}
-              />
+              <div className="lg:sticky lg:top-32 space-y-6">
+                <EpisodeList
+                  episodes={videoData?.episodes || null}
+                  currentEpisode={currentEpisode}
+                  isReversed={isReversed}
+                  onEpisodeClick={handleEpisodeClick}
+                  onToggleReverse={handleToggleReverse}
+                />
+
+                {/* Source Selector - only show when grouped sources available */}
+                {groupedSources.length > 1 && (
+                  <SourceSelector
+                    sources={groupedSources}
+                    currentSource={currentSourceId || source || ''}
+                    onSourceChange={(newSource) => {
+                      // Navigate to same video with different source
+                      const params = new URLSearchParams();
+                      params.set('id', String(newSource.id));
+                      params.set('source', newSource.source);
+                      params.set('title', title || '');
+                      if (groupedSourcesParam) {
+                        params.set('groupedSources', groupedSourcesParam);
+                      }
+                      setCurrentSourceId(newSource.source);
+                      router.replace(`/player?${params.toString()}`, { scroll: false });
+                      // Trigger refetch
+                      window.location.reload();
+                    }}
+                  />
+                )}
+              </div>
             </div>
           </div>
         )}

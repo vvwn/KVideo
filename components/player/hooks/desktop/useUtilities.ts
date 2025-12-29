@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 
 interface UseUtilitiesProps {
     src: string;
@@ -37,8 +37,10 @@ export function useUtilities({
         }
     }, [src, showToastNotification]);
 
-    return {
+    const utilityActions = useMemo(() => ({
         showToastNotification,
         handleCopyLink
-    };
+    }), [showToastNotification, handleCopyLink]);
+
+    return utilityActions;
 }

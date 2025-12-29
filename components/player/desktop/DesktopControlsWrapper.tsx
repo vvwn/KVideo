@@ -5,12 +5,13 @@ import { useDesktopPlayerLogic } from '../hooks/useDesktopPlayerLogic';
 
 interface DesktopControlsWrapperProps {
     src: string;
-    state: ReturnType<typeof useDesktopPlayerState>['state'];
+    data: ReturnType<typeof useDesktopPlayerState>['data'];
+    actions: ReturnType<typeof useDesktopPlayerState>['actions'];
     logic: ReturnType<typeof useDesktopPlayerLogic>;
     refs: ReturnType<typeof useDesktopPlayerState>['refs'];
 }
 
-export function DesktopControlsWrapper({ src, state, logic, refs }: DesktopControlsWrapperProps) {
+export function DesktopControlsWrapper({ src, data, actions, logic, refs }: DesktopControlsWrapperProps) {
     const {
         isPlaying,
         currentTime,
@@ -23,7 +24,7 @@ export function DesktopControlsWrapper({ src, state, logic, refs }: DesktopContr
         isPiPSupported,
         isAirPlaySupported,
         isCastAvailable,
-    } = state;
+    } = data;
 
     const {
         togglePlay,

@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 
 interface UseSkipControlsProps {
     videoRef: React.RefObject<HTMLVideoElement | null>;
@@ -101,8 +101,10 @@ export function useSkipControls({
         }, 800);
     }, [videoRef, showSkipBackwardIndicator, skipBackwardAmount, skipForwardTimeoutRef, skipBackwardTimeoutRef, setShowSkipForwardIndicator, setSkipForwardAmount, setIsSkipForwardAnimatingOut, setSkipBackwardAmount, setShowSkipBackwardIndicator, setIsSkipBackwardAnimatingOut, setCurrentTime]);
 
-    return {
+    const skipActions = useMemo(() => ({
         skipForward,
         skipBackward
-    };
+    }), [skipForward, skipBackward]);
+
+    return skipActions;
 }

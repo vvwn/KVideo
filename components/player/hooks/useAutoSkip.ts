@@ -1,16 +1,18 @@
 'use client';
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { usePlayerSettings } from './usePlayerSettings';
 
 interface UseAutoSkipProps {
     videoRef: React.RefObject<HTMLVideoElement | null>;
+    src: string;
     currentTime: number;
     duration: number;
     isPlaying: boolean;
     totalEpisodes?: number;
     currentEpisodeIndex?: number;
     onNextEpisode?: () => void;
+    isReversed?: boolean;
 }
 
 /**
@@ -28,6 +30,8 @@ export function useAutoSkip({
     totalEpisodes = 1,
     currentEpisodeIndex = 0,
     onNextEpisode,
+    isReversed = false,
+    src,
 }: UseAutoSkipProps) {
     const {
         autoNextEpisode,
@@ -39,28 +43,47 @@ export function useAutoSkip({
 
     // Track if we've already skipped intro for this video session
     const hasSkippedIntroRef = useRef(false);
-    // Track if we've triggered outro skip to prevent multiple triggers
+    // Track if we've already handled navigation for this specific source
+    const lastHandledSrcRef = useRef<string>('');
+    // Track if we've triggered outro skip to prevent multiple triggers within the same video session
     const hasTriggeredOutroSkipRef = useRef(false);
-    // Track previous src to reset flags on video change
-    const prevSrcRef = useRef<string | null>(null);
+    // Track if we're currently in the outro zone for UI purposes
+    const [isOutroActive, setIsOutroActive] = useState(false);
 
     // Reset flags when video source changes
     useEffect(() => {
-        const video = videoRef.current;
-        if (!video) return;
-
-        const currentSrc = video.src;
-        if (prevSrcRef.current !== currentSrc) {
-            hasSkippedIntroRef.current = false;
-            hasTriggeredOutroSkipRef.current = false;
-            prevSrcRef.current = currentSrc;
-        }
-    }, [videoRef]);
+        hasSkippedIntroRef.current = false;
+        hasTriggeredOutroSkipRef.current = false;
+        setIsOutroActive(false);
+    }, [src, videoRef]);
 
     // Check if we can advance to next episode
     const canAdvanceToNext = useCallback(() => {
-        return totalEpisodes > 1 && currentEpisodeIndex < totalEpisodes - 1 && onNextEpisode;
-    }, [totalEpisodes, currentEpisodeIndex, onNextEpisode]);
+        if (totalEpisodes <= 1) return false;
+
+        if (!isReversed) {
+            // Normal order: next is index + 1
+            return currentEpisodeIndex < totalEpisodes - 1 && onNextEpisode;
+        } else {
+            // Reversed order: next is index - 1 (since we're going backwards)
+            return currentEpisodeIndex > 0 && onNextEpisode;
+        }
+    }, [totalEpisodes, currentEpisodeIndex, onNextEpisode, isReversed]);
+
+    // Helper to trigger next episode exactly once per source
+    const triggerNextEpisode = useCallback((reason: string) => {
+        if (!onNextEpisode) return;
+
+        // Prevent double trigger for the same source URL
+        if (lastHandledSrcRef.current === src) {
+            console.log(`[AutoSkip] Ignoring ${reason} trigger: already handled for this source`);
+            return;
+        }
+
+        console.log(`[AutoSkip] Triggering next episode via ${reason}`);
+        lastHandledSrcRef.current = src;
+        onNextEpisode();
+    }, [src, onNextEpisode]);
 
     // Validate that duration is ready (not 0, NaN, or Infinity)
     const isDurationValid = useCallback(() => {
@@ -73,7 +96,7 @@ export function useAutoSkip({
     }, [currentTime]);
 
     // Handle intro skip
-    useEffect(() => {
+    const attemptIntroSkip = useCallback(() => {
         if (!autoSkipIntro || skipIntroSeconds <= 0) return;
         if (!isDurationValid() || !isTimeValid()) return;
         if (hasSkippedIntroRef.current) return;
@@ -83,54 +106,89 @@ export function useAutoSkip({
 
         // Only skip if we're in the intro zone (between 0 and skipIntroSeconds)
         if (currentTime >= 0 && currentTime < skipIntroSeconds && currentTime < duration) {
-            // Wait a brief moment to ensure video is ready
-            const skipTimeout = setTimeout(() => {
-                if (video && video.readyState >= 2) { // HAVE_CURRENT_DATA or better
-                    video.currentTime = Math.min(skipIntroSeconds, duration - 1);
-                    hasSkippedIntroRef.current = true;
-                }
-            }, 100);
-
-            return () => clearTimeout(skipTimeout);
+            if (video.readyState >= 2) { // HAVE_CURRENT_DATA or better
+                console.log(`[AutoSkip] Jumping from ${currentTime}s to intro skip point ${skipIntroSeconds}s`);
+                video.currentTime = Math.min(skipIntroSeconds, duration - 1);
+                hasSkippedIntroRef.current = true;
+            }
         }
     }, [autoSkipIntro, skipIntroSeconds, currentTime, duration, isDurationValid, isTimeValid, videoRef]);
 
+    // React to time changes for intro skip
+    useEffect(() => {
+        attemptIntroSkip();
+    }, [attemptIntroSkip]);
+
+    // Also react to video getting ready for intro skip
+    useEffect(() => {
+        const video = videoRef.current;
+        if (!video) return;
+
+        const handleReady = () => {
+            if (!hasSkippedIntroRef.current) {
+                attemptIntroSkip();
+            }
+        };
+
+        video.addEventListener('canplay', handleReady);
+        video.addEventListener('loadedmetadata', handleReady);
+        return () => {
+            video.removeEventListener('canplay', handleReady);
+            video.removeEventListener('loadedmetadata', handleReady);
+        };
+    }, [videoRef, attemptIntroSkip]);
+
     // Handle outro skip (based on remaining time)
     useEffect(() => {
-        if (!autoSkipOutro || skipOutroSeconds <= 0) return;
+        if (!autoSkipOutro || skipOutroSeconds <= 0) {
+            setIsOutroActive(false);
+            return;
+        }
         if (!isDurationValid() || !isTimeValid()) return;
         if (hasTriggeredOutroSkipRef.current) return;
-        if (!isPlaying) return;
 
         const remainingTime = duration - currentTime;
 
-        // Only trigger if video is actually playing and approaching end
-        if (remainingTime > 0 && remainingTime <= skipOutroSeconds && currentTime > 0) {
-            hasTriggeredOutroSkipRef.current = true;
+        // Check if we're in the outro zone
+        const inOutroZone = remainingTime > 0 && remainingTime <= skipOutroSeconds && currentTime > 0;
 
-            // If we can advance to next episode, do it
-            if (autoNextEpisode && canAdvanceToNext()) {
-                onNextEpisode?.();
-            } else {
-                // Otherwise just seek to end to trigger ended event
-                const video = videoRef.current;
-                if (video) {
-                    video.currentTime = duration;
+        if (inOutroZone) {
+            setIsOutroActive(true);
+
+            // Only auto-trigger if video is actually playing
+            if (isPlaying) {
+                console.log(`[AutoSkip] Outro detected: ${remainingTime.toFixed(1)}s remaining`);
+                hasTriggeredOutroSkipRef.current = true;
+
+                // If we can advance to next episode, do it
+                if (autoNextEpisode && canAdvanceToNext()) {
+                    triggerNextEpisode('outro-timer');
+                } else {
+                    // Otherwise just seek to end to trigger ended event
+                    const video = videoRef.current;
+                    if (video) {
+                        console.log('[AutoSkip] No next episode, seeking to end');
+                        video.currentTime = duration;
+                    }
                 }
             }
+        } else {
+            setIsOutroActive(false);
         }
-    }, [autoSkipOutro, skipOutroSeconds, currentTime, duration, isPlaying, isDurationValid, isTimeValid, autoNextEpisode, canAdvanceToNext, onNextEpisode, videoRef]);
+    }, [autoSkipOutro, skipOutroSeconds, currentTime, duration, isPlaying, isDurationValid, isTimeValid, autoNextEpisode, canAdvanceToNext, triggerNextEpisode, videoRef]);
 
     // Handle video ended event for auto-next
     const handleVideoEnded = useCallback(() => {
+        console.log(`[AutoSkip] Video ended naturally`);
         if (!autoNextEpisode) return;
         if (!canAdvanceToNext()) return;
+        if (hasTriggeredOutroSkipRef.current) return;
 
         // Slight delay to ensure clean transition
         setTimeout(() => {
-            onNextEpisode?.();
+            triggerNextEpisode('ended-event');
         }, 100);
-    }, [autoNextEpisode, canAdvanceToNext, onNextEpisode]);
+    }, [autoNextEpisode, canAdvanceToNext, triggerNextEpisode]);
 
     // Attach ended event listener
     useEffect(() => {

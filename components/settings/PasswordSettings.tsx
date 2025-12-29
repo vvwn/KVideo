@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { SettingsSection } from './SettingsSection';
 import { Trash2, Plus, Eye, EyeOff, Shield, ShieldCheck } from 'lucide-react';
+import { Switch } from '@/components/ui/Switch';
 
 interface PasswordSettingsProps {
     enabled: boolean;
@@ -51,15 +52,11 @@ export function PasswordSettings({
                         <label className="text-sm font-medium text-[var(--text-color)]">
                             启用密码访问
                         </label>
-                        <label className="switch relative inline-flex items-center cursor-pointer h-[30px] w-[50px] shrink-0">
-                            <input
-                                type="checkbox"
-                                className="sr-only peer"
-                                checked={enabled}
-                                onChange={(e) => onToggle(e.target.checked)}
-                            />
-                            <div className={`switch-slider w-full h-full rounded-[var(--radius-full)] bg-[color-mix(in_srgb,var(--text-color)_20%,transparent)] peer-checked:bg-[var(--accent-color)] transition-colors duration-[0.4s] cubic-bezier(0.2,0.8,0.2,1) before:content-[''] before:absolute before:h-[26px] before:w-[26px] before:left-[2px] before:bottom-[2px] before:bg-white before:rounded-[var(--radius-full)] before:transition-transform before:duration-[0.4s] before:cubic-bezier(0.2,0.8,0.2,1) before:shadow-[0_1px_3px_rgba(0,0,0,0.2)] peer-checked:before:translate-x-[20px]`}></div>
-                        </label>
+                        <Switch
+                            checked={enabled}
+                            onChange={onToggle}
+                            ariaLabel="启用密码访问开关"
+                        />
                     </div>
                 )}
 

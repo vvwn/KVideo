@@ -9,6 +9,7 @@ import { SourceSettings } from '@/components/settings/SourceSettings';
 import { SortSettings } from '@/components/settings/SortSettings';
 import { DataSettings } from '@/components/settings/DataSettings';
 import { PasswordSettings } from '@/components/settings/PasswordSettings';
+import { DisplaySettings } from '@/components/settings/DisplaySettings';
 import { SettingsHeader } from '@/components/settings/SettingsHeader';
 import { useSettingsPage } from './hooks/useSettingsPage';
 
@@ -19,6 +20,8 @@ export default function SettingsPage() {
     passwordAccess,
     accessPasswords,
     envPasswordSet,
+    realtimeLatency,
+    searchDisplayMode,
     isAddModalOpen,
     isExportModalOpen,
     isImportModalOpen,
@@ -47,6 +50,8 @@ export default function SettingsPage() {
     editingSource,
     handleEditSource,
     setEditingSource,
+    handleRealtimeLatencyChange,
+    handleSearchDisplayModeChange,
   } = useSettingsPage();
 
   return (
@@ -63,6 +68,14 @@ export default function SettingsPage() {
           onToggle={handlePasswordToggle}
           onAdd={handleAddPassword}
           onRemove={handleRemovePassword}
+        />
+
+        {/* Display Settings */}
+        <DisplaySettings
+          realtimeLatency={realtimeLatency}
+          searchDisplayMode={searchDisplayMode}
+          onRealtimeLatencyChange={handleRealtimeLatencyChange}
+          onSearchDisplayModeChange={handleSearchDisplayModeChange}
         />
 
         {/* Source Management */}

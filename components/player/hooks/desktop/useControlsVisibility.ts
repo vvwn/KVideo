@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useMemo } from 'react';
 
 interface UseControlsVisibilityProps {
     isPlaying: boolean;
@@ -107,9 +107,11 @@ export function useControlsVisibility({
         return () => clearSpeedMenuTimeout();
     }, [showSpeedMenu, startSpeedMenuTimeout, clearSpeedMenuTimeout]);
 
-    return {
+    const visibilityActions = useMemo(() => ({
         handleMouseMove,
         startSpeedMenuTimeout,
         clearSpeedMenuTimeout
-    };
+    }), [handleMouseMove, startSpeedMenuTimeout, clearSpeedMenuTimeout]);
+
+    return visibilityActions;
 }

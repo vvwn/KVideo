@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 
 export function useDesktopPlayerState() {
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -44,48 +44,83 @@ export function useDesktopPlayerState() {
     const [showToast, setShowToast] = useState(false);
     const [showMoreMenu, setShowMoreMenu] = useState(false);
 
-    return {
-        refs: {
-            videoRef,
-            containerRef,
-            progressBarRef,
-            volumeBarRef,
-            controlsTimeoutRef,
-            speedMenuTimeoutRef,
-            skipForwardTimeoutRef,
-            skipBackwardTimeoutRef,
-            volumeBarTimeoutRef,
-            isDraggingProgressRef,
-            isDraggingVolumeRef,
-            mouseMoveThrottleRef,
-            toastTimeoutRef,
-            moreMenuTimeoutRef
-        },
-        state: {
-            isPlaying, setIsPlaying,
-            currentTime, setCurrentTime,
-            duration, setDuration,
-            volume, setVolume,
-            isMuted, setIsMuted,
-            isFullscreen, setIsFullscreen,
-            showControls, setShowControls,
-            isLoading, setIsLoading,
-            playbackRate, setPlaybackRate,
-            showSpeedMenu, setShowSpeedMenu,
-            isPiPSupported, setIsPiPSupported,
-            isAirPlaySupported, setIsAirPlaySupported,
-            isCastAvailable, setIsCastAvailable,
-            isCasting, setIsCasting,
-            skipForwardAmount, setSkipForwardAmount,
-            skipBackwardAmount, setSkipBackwardAmount,
-            showSkipForwardIndicator, setShowSkipForwardIndicator,
-            showSkipBackwardIndicator, setShowSkipBackwardIndicator,
-            isSkipForwardAnimatingOut, setIsSkipForwardAnimatingOut,
-            isSkipBackwardAnimatingOut, setIsSkipBackwardAnimatingOut,
-            showVolumeBar, setShowVolumeBar,
-            toastMessage, setToastMessage,
-            showToast, setShowToast,
-            showMoreMenu, setShowMoreMenu
-        }
-    };
+    const refs = useMemo(() => ({
+        videoRef,
+        containerRef,
+        progressBarRef,
+        volumeBarRef,
+        controlsTimeoutRef,
+        speedMenuTimeoutRef,
+        skipForwardTimeoutRef,
+        skipBackwardTimeoutRef,
+        volumeBarTimeoutRef,
+        isDraggingProgressRef,
+        isDraggingVolumeRef,
+        mouseMoveThrottleRef,
+        toastTimeoutRef,
+        moreMenuTimeoutRef
+    }), []); // Refs never change after creation
+
+    const data = useMemo(() => ({
+        isPlaying,
+        currentTime,
+        duration,
+        volume,
+        isMuted,
+        isFullscreen,
+        showControls,
+        isLoading,
+        playbackRate,
+        showSpeedMenu,
+        isPiPSupported,
+        isAirPlaySupported,
+        isCastAvailable,
+        isCasting,
+        skipForwardAmount,
+        skipBackwardAmount,
+        showSkipForwardIndicator,
+        showSkipBackwardIndicator,
+        isSkipForwardAnimatingOut,
+        isSkipBackwardAnimatingOut,
+        showVolumeBar,
+        toastMessage,
+        showToast,
+        showMoreMenu
+    }), [
+        isPlaying, currentTime, duration, volume, isMuted, isFullscreen,
+        showControls, isLoading, playbackRate, showSpeedMenu, isPiPSupported,
+        isAirPlaySupported, isCastAvailable, isCasting, skipForwardAmount,
+        skipBackwardAmount, showSkipForwardIndicator, showSkipBackwardIndicator,
+        isSkipForwardAnimatingOut, isSkipBackwardAnimatingOut, showVolumeBar,
+        toastMessage, showToast, showMoreMenu
+    ]);
+
+    const actions = useMemo(() => ({
+        setIsPlaying,
+        setCurrentTime,
+        setDuration,
+        setVolume,
+        setIsMuted,
+        setIsFullscreen,
+        setShowControls,
+        setIsLoading,
+        setPlaybackRate,
+        setShowSpeedMenu,
+        setIsPiPSupported,
+        setIsAirPlaySupported,
+        setIsCastAvailable,
+        setIsCasting,
+        setSkipForwardAmount,
+        setSkipBackwardAmount,
+        setShowSkipForwardIndicator,
+        setShowSkipBackwardIndicator,
+        setIsSkipForwardAnimatingOut,
+        setIsSkipBackwardAnimatingOut,
+        setShowVolumeBar,
+        setToastMessage,
+        setShowToast,
+        setShowMoreMenu
+    }), []); // All setters from useState are stable
+
+    return { refs, data, actions };
 }

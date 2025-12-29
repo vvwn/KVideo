@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 
 interface UseVolumeControlsProps {
     videoRef: React.RefObject<HTMLVideoElement | null>;
@@ -85,10 +85,12 @@ export function useVolumeControls({
         };
     }, [isDraggingVolumeRef, volumeBarRef, videoRef, setVolume, setIsMuted]);
 
-    return {
+    const volumeActions = useMemo(() => ({
         toggleMute,
         showVolumeBarTemporarily,
         handleVolumeChange,
         handleVolumeMouseDown
-    };
+    }), [toggleMute, showVolumeBarTemporarily, handleVolumeChange, handleVolumeMouseDown]);
+
+    return volumeActions;
 }

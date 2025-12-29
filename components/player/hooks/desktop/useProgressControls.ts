@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useMemo } from 'react';
 
 interface UseProgressControlsProps {
     videoRef: React.RefObject<HTMLVideoElement | null>;
@@ -61,8 +61,10 @@ export function useProgressControls({
         };
     }, [duration, isDraggingProgressRef, progressBarRef, videoRef, setCurrentTime]);
 
-    return {
+    const progressActions = useMemo(() => ({
         handleProgressClick,
         handleProgressMouseDown
-    };
+    }), [handleProgressClick, handleProgressMouseDown]);
+
+    return progressActions;
 }

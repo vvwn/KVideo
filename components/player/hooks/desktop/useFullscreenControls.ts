@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 
 interface UseFullscreenControlsProps {
     containerRef: React.RefObject<HTMLDivElement | null>;
@@ -151,9 +151,11 @@ export function useFullscreenControls({
         }
     }, [videoRef, isAirPlaySupported]);
 
-    return {
+    const fullscreenActions = useMemo(() => ({
         toggleFullscreen,
         togglePictureInPicture,
         showAirPlayMenu
-    };
+    }), [toggleFullscreen, togglePictureInPicture, showAirPlayMenu]);
+
+    return fullscreenActions;
 }

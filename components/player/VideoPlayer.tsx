@@ -17,9 +17,18 @@ interface VideoPlayerProps {
   // Episode navigation props for auto-skip/auto-next
   totalEpisodes?: number;
   onNextEpisode?: () => void;
+  isReversed?: boolean;
 }
 
-export function VideoPlayer({ playUrl, videoId, currentEpisode, onBack, totalEpisodes, onNextEpisode }: VideoPlayerProps) {
+export function VideoPlayer({
+  playUrl,
+  videoId,
+  currentEpisode,
+  onBack,
+  totalEpisodes,
+  onNextEpisode,
+  isReversed = false
+}: VideoPlayerProps) {
   const [videoError, setVideoError] = useState<string>('');
   const [useProxy, setUseProxy] = useState(false);
   const [shouldAutoPlay, setShouldAutoPlay] = useState(true);
@@ -82,7 +91,7 @@ export function VideoPlayer({ playUrl, videoId, currentEpisode, onBack, totalEpi
   }, [videoId, playUrl, title, currentEpisode, source, addToHistory]);
 
   // Handle time updates and save progress (throttled to every 5 seconds)
-  const handleTimeUpdate = (currentTime: number, duration: number) => {
+  const handleTimeUpdate = useCallback((currentTime: number, duration: number) => {
     // Always track current time for beforeunload
     currentTimeRef.current = currentTime;
     durationRef.current = duration;
@@ -95,7 +104,7 @@ export function VideoPlayer({ playUrl, videoId, currentEpisode, onBack, totalEpi
       lastSaveTimeRef.current = now;
       saveProgress(currentTime, duration);
     }
-  };
+  }, [videoId, playUrl, saveProgress]);
 
   // Save on page leave/refresh
   useEffect(() => {
@@ -158,8 +167,8 @@ export function VideoPlayer({ playUrl, videoId, currentEpisode, onBack, totalEpi
       {showModeIndicator && (
         <div className="absolute top-3 right-3 z-30">
           <span className={`px-2 py-1 text-xs font-medium rounded-full backdrop-blur-md transition-all duration-300 ${useProxy
-              ? 'bg-orange-500/80 text-white'
-              : 'bg-green-500/80 text-white'
+            ? 'bg-orange-500/80 text-white'
+            : 'bg-green-500/80 text-white'
             }`}>
             {useProxy ? '代理模式' : '直连模式'}
           </span>
@@ -175,7 +184,7 @@ export function VideoPlayer({ playUrl, videoId, currentEpisode, onBack, totalEpi
         />
       ) : (
         <CustomVideoPlayer
-          key={`${useProxy ? 'proxy' : 'direct'}-${retryCount}`} // Force remount when switching modes or retrying
+          key={`${useProxy ? 'proxy' : 'direct'}-${retryCount}-${finalPlayUrl}`} // Force remount when switching modes, retrying, or changing source
           src={finalPlayUrl}
           onError={handleVideoError}
           onTimeUpdate={handleTimeUpdate}
@@ -184,6 +193,7 @@ export function VideoPlayer({ playUrl, videoId, currentEpisode, onBack, totalEpi
           totalEpisodes={totalEpisodes}
           currentEpisodeIndex={currentEpisode}
           onNextEpisode={onNextEpisode}
+          isReversed={isReversed}
         />
       )}
     </Card>

@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useRef, useCallback, useMemo, memo } from 'react';
+import { useState, useRef, useCallback, useMemo, memo, useEffect } from 'react';
 import { VideoCard } from './VideoCard';
-
+import { VideoGroupCard, GroupedVideo } from './VideoGroupCard';
+import { settingsStore } from '@/lib/store/settings-store';
 import { Video } from '@/lib/types';
 
 interface VideoGridProps {
@@ -13,14 +14,58 @@ interface VideoGridProps {
 export const VideoGrid = memo(function VideoGrid({ videos, className = '' }: VideoGridProps) {
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(24);
+  const [displayMode, setDisplayMode] = useState<'normal' | 'grouped'>('normal');
   const gridRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
+
+  // Load display mode from settings
+  useEffect(() => {
+    const settings = settingsStore.getSettings();
+    setDisplayMode(settings.searchDisplayMode);
+
+    const unsubscribe = settingsStore.subscribe(() => {
+      const newSettings = settingsStore.getSettings();
+      setDisplayMode(newSettings.searchDisplayMode);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   if (videos.length === 0) {
     return null;
   }
 
-  // Callback ref for the load more trigger to handle dynamic mounting/unmounting
+  // Group videos by name when in grouped mode
+  const groupedVideos = useMemo<GroupedVideo[]>(() => {
+    if (displayMode !== 'grouped') return [];
+
+    const groups = new Map<string, Video[]>();
+
+    videos.forEach(video => {
+      const name = video.vod_name.toLowerCase().trim();
+      if (!groups.has(name)) {
+        groups.set(name, []);
+      }
+      groups.get(name)!.push(video);
+    });
+
+    return Array.from(groups.entries()).map(([, groupVideos]) => {
+      // Sort by latency (lowest first) 
+      const sorted = [...groupVideos].sort((a, b) => {
+        if (a.latency === undefined) return 1;
+        if (b.latency === undefined) return -1;
+        return a.latency - b.latency;
+      });
+
+      return {
+        representative: sorted[0],
+        videos: sorted,
+        name: sorted[0].vod_name,
+      };
+    });
+  }, [videos, displayMode]);
+
+  // Callback ref for the load more trigger
   const loadMoreRef = useCallback((node: HTMLDivElement | null) => {
     if (observerRef.current) observerRef.current.disconnect();
 
@@ -35,27 +80,24 @@ export const VideoGrid = memo(function VideoGrid({ videos, className = '' }: Vid
     }
   }, []);
 
-  // Memoize the click handler to prevent re-renders
+  // Memoize the click handler
   const handleCardClick = useCallback((e: React.MouseEvent, videoId: string, videoUrl: string) => {
-    // Check if it's a mobile device
-    const isMobile = window.innerWidth < 1024; // lg breakpoint
+    const isMobile = window.innerWidth < 1024;
 
     if (isMobile) {
-      // On mobile, first click shows details, second click navigates
       if (activeCardId === videoId) {
-        // Already active, allow navigation
         window.location.href = videoUrl;
       } else {
-        // First click, show details
         e.preventDefault();
         setActiveCardId(videoId);
       }
     }
-    // On desktop, let the Link work normally
   }, [activeCardId]);
 
-  // Memoize video items to prevent unnecessary re-computations
+  // Normal mode items
   const videoItems = useMemo(() => {
+    if (displayMode === 'grouped') return [];
+
     return videos.map((video, index) => {
       const videoUrl = `/player?${new URLSearchParams({
         id: String(video.vod_id),
@@ -65,15 +107,21 @@ export const VideoGrid = memo(function VideoGrid({ videos, className = '' }: Vid
 
       const cardId = `${video.vod_id}-${index}`;
 
-      return {
-        video,
-        videoUrl,
-        cardId,
-      };
+      return { video, videoUrl, cardId };
     });
-  }, [videos]);
+  }, [videos, displayMode]);
 
-  const visibleItems = videoItems.slice(0, visibleCount);
+  // Grouped mode items
+  const groupItems = useMemo(() => {
+    if (displayMode !== 'grouped') return [];
+
+    return groupedVideos.map((group, index) => ({
+      group,
+      cardId: `group-${group.representative.vod_id}-${index}`,
+    }));
+  }, [groupedVideos, displayMode]);
+
+  const totalItems = displayMode === 'grouped' ? groupItems.length : videoItems.length;
 
   return (
     <>
@@ -82,30 +130,41 @@ export const VideoGrid = memo(function VideoGrid({ videos, className = '' }: Vid
         className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-6 gap-3 md:gap-4 lg:gap-6 max-w-[1920px] mx-auto ${className}`}
         role="list"
         aria-label="视频搜索结果"
-        style={{
-          // Optimize rendering performance
-          // willChange: 'auto', // Removed to let browser decide
-          // contain: 'layout style paint', // Removed to fix z-index stacking context
-        }}
       >
-        {visibleItems.map(({ video, videoUrl, cardId }) => {
-          const isActive = activeCardId === cardId;
-
-          return (
-            <VideoCard
-              key={cardId}
-              video={video}
-              videoUrl={videoUrl}
-              cardId={cardId}
-              isActive={isActive}
-              onCardClick={handleCardClick}
-            />
-          );
-        })}
+        {displayMode === 'grouped' ? (
+          // Grouped mode
+          groupItems.slice(0, visibleCount).map(({ group, cardId }) => {
+            const isActive = activeCardId === cardId;
+            return (
+              <VideoGroupCard
+                key={cardId}
+                group={group}
+                cardId={cardId}
+                isActive={isActive}
+                onCardClick={handleCardClick}
+              />
+            );
+          })
+        ) : (
+          // Normal mode
+          videoItems.slice(0, visibleCount).map(({ video, videoUrl, cardId }) => {
+            const isActive = activeCardId === cardId;
+            return (
+              <VideoCard
+                key={cardId}
+                video={video}
+                videoUrl={videoUrl}
+                cardId={cardId}
+                isActive={isActive}
+                onCardClick={handleCardClick}
+              />
+            );
+          })
+        )}
       </div>
 
       {/* Load more trigger */}
-      {visibleCount < videoItems.length && (
+      {visibleCount < totalItems && (
         <div
           ref={loadMoreRef}
           className="h-20 w-full flex items-center justify-center opacity-0 pointer-events-none"
@@ -115,3 +174,4 @@ export const VideoGrid = memo(function VideoGrid({ videos, className = '' }: Vid
     </>
   );
 });
+

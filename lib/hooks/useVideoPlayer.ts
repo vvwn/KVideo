@@ -33,7 +33,8 @@ import { settingsStore } from '@/lib/store/settings-store';
 export function useVideoPlayer(
   videoId: string | null,
   source: string | null,
-  episodeParam: string | null
+  episodeParam: string | null,
+  isReversed: boolean = false
 ): UseVideoPlayerReturn {
   const [videoData, setVideoData] = useState<VideoData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -94,8 +95,10 @@ export function useVideoPlayer(
         setLoading(false);
 
         if (data.data.episodes && data.data.episodes.length > 0) {
-          const episodeIndex = episodeParam ? parseInt(episodeParam, 10) : 0;
-          const validIndex = (episodeIndex >= 0 && episodeIndex < data.data.episodes.length) ? episodeIndex : 0;
+          // Default to first (0) or last (length-1) based on reverse order if no param
+          const defaultIndex = isReversed ? data.data.episodes.length - 1 : 0;
+          const episodeIndex = episodeParam ? parseInt(episodeParam, 10) : defaultIndex;
+          const validIndex = (episodeIndex >= 0 && episodeIndex < data.data.episodes.length) ? episodeIndex : defaultIndex;
 
           const episodeUrl = data.data.episodes[validIndex].url;
 
@@ -113,7 +116,7 @@ export function useVideoPlayer(
       setVideoError(error instanceof Error ? error.message : 'Failed to load video details. Please try another source.');
       setLoading(false);
     }
-  }, [videoId, source, episodeParam]);
+  }, [videoId, source, episodeParam, isReversed]);
 
   useEffect(() => {
     if (videoId && source) {

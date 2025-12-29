@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { settingsStore, getDefaultSources, type SortOption } from '@/lib/store/settings-store';
+import { settingsStore, getDefaultSources, type SortOption, type SearchDisplayMode } from '@/lib/store/settings-store';
 import type { VideoSource, SourceSubscription } from '@/lib/types';
 import {
     type ImportResult,
@@ -23,6 +23,10 @@ export function useSettingsPage() {
     const [accessPasswords, setAccessPasswords] = useState<string[]>([]);
     const [envPasswordSet, setEnvPasswordSet] = useState(false);
 
+    // Display settings
+    const [realtimeLatency, setRealtimeLatency] = useState(false);
+    const [searchDisplayMode, setSearchDisplayMode] = useState<SearchDisplayMode>('normal');
+
     useEffect(() => {
         const settings = settingsStore.getSettings();
         setSources(settings.sources || []);
@@ -30,6 +34,8 @@ export function useSettingsPage() {
         setSortBy(settings.sortBy);
         setPasswordAccess(settings.passwordAccess);
         setAccessPasswords(settings.accessPasswords);
+        setRealtimeLatency(settings.realtimeLatency);
+        setSearchDisplayMode(settings.searchDisplayMode);
 
         // Fetch env password status
         fetch('/api/config')
@@ -255,6 +261,24 @@ export function useSettingsPage() {
         }
     };
 
+    const handleRealtimeLatencyChange = (enabled: boolean) => {
+        setRealtimeLatency(enabled);
+        const currentSettings = settingsStore.getSettings();
+        settingsStore.saveSettings({
+            ...currentSettings,
+            realtimeLatency: enabled,
+        });
+    };
+
+    const handleSearchDisplayModeChange = (mode: SearchDisplayMode) => {
+        setSearchDisplayMode(mode);
+        const currentSettings = settingsStore.getSettings();
+        settingsStore.saveSettings({
+            ...currentSettings,
+            searchDisplayMode: mode,
+        });
+    };
+
     const handleRestoreDefaults = () => {
         const defaults = getDefaultSources();
         handleSourcesChange(defaults);
@@ -274,6 +298,8 @@ export function useSettingsPage() {
         passwordAccess,
         accessPasswords,
         envPasswordSet,
+        realtimeLatency,
+        searchDisplayMode,
         isAddModalOpen,
         isExportModalOpen,
         isImportModalOpen,
@@ -301,5 +327,7 @@ export function useSettingsPage() {
         handleResetAll,
         editingSource,
         handleEditSource,
+        handleRealtimeLatencyChange,
+        handleSearchDisplayModeChange,
     };
 }

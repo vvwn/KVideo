@@ -17,6 +17,8 @@ export type SortOption =
   | 'name-asc'
   | 'name-desc';
 
+export type SearchDisplayMode = 'normal' | 'grouped';
+
 export interface AppSettings {
   sources: VideoSource[];
   adultSources: VideoSource[];
@@ -33,6 +35,10 @@ export interface AppSettings {
   autoSkipOutro: boolean;
   skipOutroSeconds: number;
   showModeIndicator: boolean; // Show '直连模式'/'代理模式' badge on player
+  // Search & Display settings
+  realtimeLatency: boolean; // Enable real-time latency ping updates
+  searchDisplayMode: SearchDisplayMode; // 'normal' = individual cards, 'grouped' = group same-name videos
+  episodeReverseOrder: boolean; // Persist episode list reverse state
 }
 
 import { exportSettings, importSettings, SEARCH_HISTORY_KEY, WATCH_HISTORY_KEY } from './settings-helpers';
@@ -99,6 +105,9 @@ export const settingsStore = {
         autoSkipOutro: false,
         skipOutroSeconds: 0,
         showModeIndicator: false,
+        realtimeLatency: false,
+        searchDisplayMode: 'normal',
+        episodeReverseOrder: false,
       };
     }
 
@@ -119,6 +128,9 @@ export const settingsStore = {
         autoSkipOutro: false,
         skipOutroSeconds: 0,
         showModeIndicator: false,
+        realtimeLatency: false,
+        searchDisplayMode: 'normal',
+        episodeReverseOrder: false,
       };
     }
 
@@ -175,6 +187,9 @@ export const settingsStore = {
         autoSkipOutro: parsed.autoSkipOutro !== undefined ? parsed.autoSkipOutro : false,
         skipOutroSeconds: typeof parsed.skipOutroSeconds === 'number' ? parsed.skipOutroSeconds : 0,
         showModeIndicator: parsed.showModeIndicator !== undefined ? parsed.showModeIndicator : false,
+        realtimeLatency: parsed.realtimeLatency !== undefined ? parsed.realtimeLatency : false,
+        searchDisplayMode: parsed.searchDisplayMode === 'grouped' ? 'grouped' : 'normal',
+        episodeReverseOrder: parsed.episodeReverseOrder !== undefined ? parsed.episodeReverseOrder : false,
       };
     } catch {
       // Even if localStorage fails, we should return defaults + ENV subscriptions
@@ -195,6 +210,9 @@ export const settingsStore = {
         autoSkipOutro: false,
         skipOutroSeconds: 0,
         showModeIndicator: false,
+        realtimeLatency: false,
+        searchDisplayMode: 'normal',
+        episodeReverseOrder: false,
       };
     }
   },

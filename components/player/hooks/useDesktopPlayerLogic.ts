@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { usePlaybackControls } from './desktop/usePlaybackControls';
 import { useVolumeControls } from './desktop/useVolumeControls';
 import { useProgressControls } from './desktop/useProgressControls';
@@ -19,7 +20,8 @@ interface UseDesktopPlayerLogicProps {
     onError?: (error: string) => void;
     onTimeUpdate?: (currentTime: number, duration: number) => void;
     refs: DesktopPlayerState['refs'];
-    state: DesktopPlayerState['state'];
+    data: DesktopPlayerState['data'];
+    actions: DesktopPlayerState['actions'];
 }
 
 export function useDesktopPlayerLogic({
@@ -29,7 +31,8 @@ export function useDesktopPlayerLogic({
     onError,
     onTimeUpdate,
     refs,
-    state
+    data,
+    actions
 }: UseDesktopPlayerLogicProps) {
     const {
         videoRef, containerRef, progressBarRef, volumeBarRef,
@@ -39,28 +42,51 @@ export function useDesktopPlayerLogic({
     } = refs;
 
     const {
-        isPlaying, setIsPlaying,
-        currentTime, setCurrentTime,
-        duration, setDuration,
-        volume, setVolume,
-        isMuted, setIsMuted,
-        isFullscreen, setIsFullscreen,
-        showControls, setShowControls,
+        isPlaying,
+        currentTime,
+        duration,
+        volume,
+        isMuted,
+        isFullscreen,
+        showControls,
+        isLoading,
+        playbackRate,
+        showSpeedMenu,
+        isPiPSupported,
+        isAirPlaySupported,
+        skipForwardAmount,
+        skipBackwardAmount,
+        showSkipForwardIndicator,
+        showSkipBackwardIndicator,
+        showMoreMenu
+    } = data;
+
+    const {
+        setIsPlaying,
+        setCurrentTime,
+        setDuration,
+        setVolume,
+        setIsMuted,
+        setIsFullscreen,
+        setShowControls,
         setIsLoading,
-        playbackRate, setPlaybackRate,
-        showSpeedMenu, setShowSpeedMenu,
-        isPiPSupported, setIsPiPSupported,
-        isAirPlaySupported, setIsAirPlaySupported,
-        skipForwardAmount, setSkipForwardAmount,
-        skipBackwardAmount, setSkipBackwardAmount,
-        showSkipForwardIndicator, setShowSkipForwardIndicator,
-        showSkipBackwardIndicator, setShowSkipBackwardIndicator,
-        setIsSkipForwardAnimatingOut, setIsSkipBackwardAnimatingOut,
-        setShowVolumeBar, setToastMessage, setShowToast,
-        isCastAvailable, setIsCastAvailable,
-        isCasting, setIsCasting,
-        showMoreMenu, setShowMoreMenu
-    } = state;
+        setPlaybackRate,
+        setShowSpeedMenu,
+        setIsPiPSupported,
+        setIsAirPlaySupported,
+        setSkipForwardAmount,
+        setSkipBackwardAmount,
+        setShowSkipForwardIndicator,
+        setShowSkipBackwardIndicator,
+        setIsSkipForwardAnimatingOut,
+        setIsSkipBackwardAnimatingOut,
+        setShowVolumeBar,
+        setToastMessage,
+        setShowToast,
+        setIsCastAvailable,
+        setIsCasting,
+        setShowMoreMenu
+    } = actions;
 
     const playbackControls = usePlaybackControls({
         videoRef, isPlaying, setIsPlaying, setIsLoading,
@@ -120,7 +146,7 @@ export function useDesktopPlayerLogic({
         setShowControls, setVolume, setIsMuted, controlsTimeoutRef
     });
 
-    return {
+    return useMemo(() => ({
         handleMouseMove: controlsVisibility.handleMouseMove,
         togglePlay: playbackControls.togglePlay,
         handlePlay: playbackControls.handlePlay,
@@ -148,5 +174,15 @@ export function useDesktopPlayerLogic({
         startSpeedMenuTimeout: controlsVisibility.startSpeedMenuTimeout,
         clearSpeedMenuTimeout: controlsVisibility.clearSpeedMenuTimeout,
         formatTime: playbackControls.formatTime
-    };
+    }), [
+        src,
+        controlsVisibility,
+        playbackControls,
+        progressControls,
+        volumeControls,
+        fullscreenControls,
+        castControls,
+        skipControls,
+        utilities
+    ]);
 }
