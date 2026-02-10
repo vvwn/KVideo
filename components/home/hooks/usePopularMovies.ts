@@ -6,6 +6,8 @@ interface DoubanMovie {
     title: string;
     cover: string;
     rate: string;
+    imdbRating?: string | null;
+    imdbUrl?: string | null;
     url: string;
 }
 
