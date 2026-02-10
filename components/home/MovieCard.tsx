@@ -15,6 +15,7 @@ interface DoubanMovie {
   cover: string;
   rate: string;
   imdbRating?: string | null;
+  imdbUrl?: string | null;
   url: string;
 }
 
@@ -75,16 +76,32 @@ export const MovieCard = memo(function MovieCard({ movie, onMovieClick }: MovieC
               <p className="text-sm text-[var(--text-muted)]">暂无图片</p>
             </div>
           )}
-          {movie.imdbRating && parseFloat(movie.imdbRating) > 0 && (
+          {movie.imdbUrl && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                window.open(movie.imdbUrl ?? '', '_blank', 'noopener,noreferrer');
+              }}
+              className="absolute top-2 left-2 bg-black/80 px-2.5 py-1.5 rounded-[var(--radius-full)] text-xs font-bold text-white hover:bg-black"
+              aria-label={`${movie.title} IMDb 链接`}
+            >
+              IMDb
+            </button>
+          )}
+          {(movie.imdbRating && parseFloat(movie.imdbRating) > 0) || (movie.rate && parseFloat(movie.rate) > 0) ? (
             <div
               className="absolute top-2 right-2 bg-black/80 px-2.5 py-1.5 flex items-center gap-1.5 rounded-[var(--radius-full)]"
             >
               <Icons.Star size={12} className="text-yellow-400 fill-yellow-400" />
               <span className="text-xs font-bold text-white">
-                IMDb {movie.imdbRating}
+                {movie.imdbRating && parseFloat(movie.imdbRating) > 0
+                  ? `IMDb ${movie.imdbRating}`
+                  : `豆瓣 ${movie.rate}`}
               </span>
             </div>
-          )}
+          ) : null}
         </div>
         <div className="pt-3">
           <h3 className="font-semibold text-sm text-center text-[var(--text-color)] line-clamp-2 group-hover:text-[var(--accent-color)] transition-colors">
