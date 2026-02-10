@@ -14,11 +14,19 @@ interface DoubanRecommendResponse {
   subjects?: DoubanSubject[];
 }
 
-async function fetchImdbRating(title: string, type: string): Promise<string | null> {
+interface ImdbInfo {
+  imdbRating: string | null;
+  imdbUrl: string | null;
+}
+
+async function fetchImdbInfo(title: string, type: string): Promise<ImdbInfo> {
   const omdbApiKey = process.env.OMDB_API_KEY;
 
   if (!omdbApiKey || !title) {
-    return null;
+    return {
+      imdbRating: null,
+      imdbUrl: null,
+    };
   }
 
   try {
@@ -29,17 +37,29 @@ async function fetchImdbRating(title: string, type: string): Promise<string | nu
     });
 
     if (!response.ok) {
-      return null;
+      return {
+        imdbRating: null,
+        imdbUrl: null,
+      };
     }
 
-    const data = await response.json() as { Response?: string; imdbRating?: string };
-    if (data?.Response === 'True' && data?.imdbRating && data.imdbRating !== 'N/A') {
-      return data.imdbRating;
+    const data = await response.json() as { Response?: string; imdbRating?: string; imdbID?: string };
+    if (data?.Response === 'True') {
+      return {
+        imdbRating: data?.imdbRating && data.imdbRating !== 'N/A' ? data.imdbRating : null,
+        imdbUrl: data?.imdbID ? `https://www.imdb.com/title/${data.imdbID}/` : null,
+      };
     }
 
-    return null;
+    return {
+      imdbRating: null,
+      imdbUrl: null,
+    };
   } catch {
-    return null;
+    return {
+      imdbRating: null,
+      imdbUrl: null,
+    };
   }
 }
 
@@ -69,11 +89,14 @@ export async function GET(request: Request) {
 
     // 转换图片链接使用代理，并补充 IMDb 评分
     if (data.subjects && Array.isArray(data.subjects)) {
-      data.subjects = await Promise.all(data.subjects.map(async (item) => ({
-        ...item,
-        cover: item.cover ? `/api/douban/image?url=${encodeURIComponent(item.cover)}` : item.cover,
-        imdbRating: await fetchImdbRating(item.title, type),
-      })));
+      data.subjects = await Promise.all(data.subjects.map(async (item) => {
+        const imdbInfo = await fetchImdbInfo(item.title, type);
+        return {
+          ...item,
+          cover: item.cover ? `/api/douban/image?url=${encodeURIComponent(item.cover)}` : item.cover,
+          ...imdbInfo,
+        };
+      }));
     }
 
     return NextResponse.json(data);

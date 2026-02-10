@@ -15,6 +15,7 @@ interface DoubanMovie {
   cover: string;
   rate: string;
   imdbRating?: string | null;
+  imdbUrl?: string | null;
   url: string;
 }
 
@@ -74,6 +75,20 @@ export const MovieCard = memo(function MovieCard({ movie, onMovieClick }: MovieC
             <div className="w-full h-full flex items-center justify-center bg-[var(--glass-bg)] rounded-[var(--radius-2xl)]">
               <p className="text-sm text-[var(--text-muted)]">暂无图片</p>
             </div>
+          )}
+          {movie.imdbUrl && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                window.open(movie.imdbUrl ?? '', '_blank', 'noopener,noreferrer');
+              }}
+              className="absolute top-2 left-2 bg-black/80 px-2.5 py-1.5 rounded-[var(--radius-full)] text-xs font-bold text-white hover:bg-black"
+              aria-label={`${movie.title} IMDb 链接`}
+            >
+              IMDb
+            </button>
           )}
           {movie.imdbRating && parseFloat(movie.imdbRating) > 0 && (
             <div
