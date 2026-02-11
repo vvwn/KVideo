@@ -76,23 +76,43 @@ export const MovieCard = memo(function MovieCard({ movie, onMovieClick }: MovieC
               <p className="text-sm text-[var(--text-muted)]">暂无图片</p>
             </div>
           )}
-          {movie.tmdbRating && parseFloat(movie.tmdbRating) > 0 && movie.tmdbUrl && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                window.open(movie.tmdbUrl ?? '', '_blank', 'noopener,noreferrer');
-              }}
-              className="absolute top-2 right-2 bg-black/80 px-2.5 py-1.5 flex items-center gap-1.5 rounded-[var(--radius-full)] hover:bg-black"
-              aria-label={`${movie.title} TMDB 评分链接`}
-            >
-              <Icons.Star size={12} className="text-yellow-400 fill-yellow-400" />
-              <span className="text-xs font-bold text-white">
-                TMDB {movie.tmdbRating}
-              </span>
-            </button>
-          )}
+          <div className="absolute top-2 right-2 flex flex-col items-end gap-1.5">
+            {movie.tmdbRating && parseFloat(movie.tmdbRating) > 0 && movie.tmdbUrl && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  window.open(movie.tmdbUrl ?? '', '_blank', 'noopener,noreferrer');
+                }}
+                className="bg-black/80 px-2.5 py-1.5 flex items-center gap-1.5 rounded-[var(--radius-full)] hover:bg-black"
+                aria-label={`${movie.title} TMDB 评分链接`}
+              >
+                <Icons.Star size={12} className="text-yellow-400 fill-yellow-400" />
+                <span className="text-xs font-bold text-white">
+                  {movie.tmdbRating}
+                </span>
+              </button>
+            )}
+
+            {movie.rate && parseFloat(movie.rate) > 0 && movie.url && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  window.open(movie.url ?? '', '_blank', 'noopener,noreferrer');
+                }}
+                className="bg-black/80 px-2.5 py-1.5 flex items-center gap-1.5 rounded-[var(--radius-full)] hover:bg-black"
+                aria-label={`${movie.title} 豆瓣评分链接`}
+              >
+                <Icons.Star size={12} className="text-green-400 fill-green-400" />
+                <span className="text-xs font-bold text-white">
+                  {movie.rate}
+                </span>
+              </button>
+            )}
+          </div>
         </div>
         <div className="pt-3">
           <h3 className="font-semibold text-sm text-center text-[var(--text-color)] line-clamp-2 group-hover:text-[var(--accent-color)] transition-colors">
