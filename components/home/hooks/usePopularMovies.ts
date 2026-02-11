@@ -6,14 +6,19 @@ interface DoubanMovie {
     title: string;
     cover: string;
     rate: string;
-    imdbRating?: string | null;
-    imdbUrl?: string | null;
+    tmdbRating?: string | null;
+    tmdbUrl?: string | null;
     url: string;
+}
+
+interface TagOption {
+    id: string;
+    value: string;
 }
 
 const PAGE_LIMIT = 20;
 
-export function usePopularMovies(selectedTag: string, tags: any[], contentType: 'movie' | 'tv' = 'movie') {
+export function usePopularMovies(selectedTag: string, tags: TagOption[], contentType: 'movie' | 'tv' = 'movie') {
     const [movies, setMovies] = useState<DoubanMovie[]>([]);
     const [loading, setLoading] = useState(false);
     const [hasMore, setHasMore] = useState(true);
