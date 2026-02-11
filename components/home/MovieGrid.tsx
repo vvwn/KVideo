@@ -11,8 +11,8 @@ interface DoubanMovie {
   title: string;
   cover: string;
   rate: string;
-  tmdbRating?: string | null;
-  tmdbUrl?: string | null;
+  imdbRating?: string | null;
+  imdbUrl?: string | null;
   url: string;
 }
 

@@ -14,40 +14,73 @@ interface DoubanRecommendResponse {
   subjects?: DoubanSubject[];
 }
 
-interface TmdbInfo {
-  tmdbRating: string | null;
-  tmdbUrl: string | null;
+interface ImdbInfo {
+  imdbRating: string | null;
+  imdbUrl: string | null;
+}
+
+interface OmdbSearchItem {
+  imdbID?: string;
+}
+
+interface OmdbSearchResponse {
+  Response?: string;
+  Search?: OmdbSearchItem[];
+}
+
+interface OmdbRatingResponse {
+  Response?: string;
+  imdbRating?: string;
+  imdbID?: string;
 }
 
 interface TmdbSearchItem {
-  id: number;
-  vote_average?: number;
+  original_title?: string;
+  title?: string;
+  original_name?: string;
+  name?: string;
+  release_date?: string;
+  first_air_date?: string;
 }
 
 interface TmdbSearchResponse {
   results?: TmdbSearchItem[];
 }
 
-async function fetchTmdbInfo(title: string, type: string): Promise<TmdbInfo> {
+interface OmdbLookupInput {
+  omdbTitle: string;
+  year: string | null;
+}
+
+function extractYear(date?: string): string | null {
+  if (!date || date.length < 4) {
+    return null;
+  }
+
+  const year = date.slice(0, 4);
+  return /^\d{4}$/.test(year) ? year : null;
+}
+
+async function resolveOmdbLookupInput(title: string, type: string): Promise<OmdbLookupInput> {
   const tmdbApiKey = process.env.TMDB_API_KEY;
   const tmdbReadAccessToken = process.env.TMDB_API_READ_ACCESS_TOKEN;
 
   if ((!tmdbApiKey && !tmdbReadAccessToken) || !title) {
     return {
-      tmdbRating: null,
-      tmdbUrl: null,
+      omdbTitle: title,
+      year: null,
     };
   }
 
   try {
     const searchType = type === 'tv' ? 'tv' : 'movie';
-    const url = new URL(`https://api.themoviedb.org/3/search/${searchType}`);
-    url.searchParams.set('query', title);
-    url.searchParams.set('include_adult', 'false');
-    url.searchParams.set('language', 'zh-CN');
+    const tmdbUrl = new URL(`https://api.themoviedb.org/3/search/${searchType}`);
+    tmdbUrl.searchParams.set('query', title);
+    tmdbUrl.searchParams.set('include_adult', 'false');
+    tmdbUrl.searchParams.set('language', 'zh-CN');
 
     if (tmdbApiKey) {
-      url.searchParams.set('api_key', tmdbApiKey);
+      tmdbUrl.searchParams.set('api_key', tmdbApiKey);
     }
 
     const headers: HeadersInit = {};
@@ -55,40 +88,138 @@ async function fetchTmdbInfo(title: string, type: string): Promise<TmdbInfo> {
       headers.Authorization = `Bearer ${tmdbReadAccessToken}`;
     }
 
-    const response = await fetch(url, {
+    const tmdbResponse = await fetch(tmdbUrl, {
       headers,
-      next: { revalidate: 86400 }, // Cache for 24 hours
+      next: { revalidate: 86400 },
     });
 
-    if (!response.ok) {
+    if (!tmdbResponse.ok) {
       return {
-        tmdbRating: null,
-        tmdbUrl: null,
+        omdbTitle: title,
+        year: null,
       };
     }
 
-    const data = await response.json() as TmdbSearchResponse;
-    const firstResult = data.results?.[0];
+    const tmdbData = await tmdbResponse.json() as TmdbSearchResponse;
+    const firstResult = tmdbData.results?.[0];
 
-    if (firstResult?.id) {
-      const voteAverage = typeof firstResult.vote_average === 'number'
-        ? firstResult.vote_average.toFixed(1)
-        : null;
-
+    if (!firstResult) {
       return {
-        tmdbRating: voteAverage,
-        tmdbUrl: `https://www.themoviedb.org/${searchType}/${firstResult.id}`,
+        omdbTitle: title,
+        year: null,
       };
     }
+
+    const omdbTitle = firstResult.original_title
+      || firstResult.original_name
+      || firstResult.title
+      || firstResult.name
+      || title;
+
+    const year = extractYear(firstResult.release_date) ?? extractYear(firstResult.first_air_date);
 
     return {
-      tmdbRating: null,
-      tmdbUrl: null,
+      omdbTitle,
+      year,
     };
   } catch {
     return {
-      tmdbRating: null,
-      tmdbUrl: null,
+      omdbTitle: title,
+      year: null,
+    };
+  }
+}
+
+async function fetchImdbInfo(title: string, type: string): Promise<ImdbInfo> {
+  const omdbApiKey = process.env.OMDB_API_KEY;
+
+  if (!omdbApiKey || !title) {
+    return {
+      imdbRating: null,
+      imdbUrl: null,
+    };
+  }
+
+  try {
+    const lookupInput = await resolveOmdbLookupInput(title, type);
+
+    const detailUrl = new URL('https://www.omdbapi.com/');
+    detailUrl.searchParams.set('apikey', omdbApiKey);
+    detailUrl.searchParams.set('t', lookupInput.omdbTitle);
+    detailUrl.searchParams.set('type', type === 'tv' ? 'series' : 'movie');
+    if (lookupInput.year) {
+      detailUrl.searchParams.set('y', lookupInput.year);
+    }
+
+    const detailResponse = await fetch(detailUrl, {
+      next: { revalidate: 86400 }, // Cache for 24 hours
+    });
+
+    if (detailResponse.ok) {
+      const detailData = await detailResponse.json() as OmdbRatingResponse;
+      if (detailData.Response === 'True' && detailData.imdbID) {
+        return {
+          imdbRating: detailData.imdbRating && detailData.imdbRating !== 'N/A' ? detailData.imdbRating : null,
+          imdbUrl: `https://www.imdb.com/title/${detailData.imdbID}/`,
+        };
+      }
+    }
+
+    // Fallback: use search API when title match is not exact.
+    const searchUrl = new URL('https://www.omdbapi.com/');
+    searchUrl.searchParams.set('apikey', omdbApiKey);
+    searchUrl.searchParams.set('s', lookupInput.omdbTitle);
+    searchUrl.searchParams.set('type', type === 'tv' ? 'series' : 'movie');
+
+    const searchResponse = await fetch(searchUrl, {
+      next: { revalidate: 86400 },
+    });
+
+    if (!searchResponse.ok) {
+      return {
+        imdbRating: null,
+        imdbUrl: null,
+      };
+    }
+
+    const searchData = await searchResponse.json() as OmdbSearchResponse;
+    const imdbID = searchData.Search?.[0]?.imdbID;
+
+    if (!imdbID) {
+      return {
+        imdbRating: null,
+        imdbUrl: null,
+      };
+    }
+
+    const ratingUrl = new URL('https://www.omdbapi.com/');
+    ratingUrl.searchParams.set('apikey', omdbApiKey);
+    ratingUrl.searchParams.set('i', imdbID);
+
+    const ratingResponse = await fetch(ratingUrl, {
+      next: { revalidate: 86400 },
+    });
+
+    if (!ratingResponse.ok) {
+      return {
+        imdbRating: null,
+        imdbUrl: `https://www.imdb.com/title/${imdbID}/`,
+      };
+    }
+
+    const ratingData = await ratingResponse.json() as OmdbRatingResponse;
+    const imdbRating = ratingData.Response === 'True' && ratingData.imdbRating && ratingData.imdbRating !== 'N/A'
+      ? ratingData.imdbRating
+      : null;
+
+    return {
+      imdbRating,
+      imdbUrl: `https://www.imdb.com/title/${imdbID}/`,
+    };
+  } catch {
+    return {
+      imdbRating: null,
+      imdbUrl: null,
     };
   }
 }
@@ -117,14 +248,14 @@ export async function GET(request: Request) {
 
     const data = await response.json() as DoubanRecommendResponse;
 
-    // 转换图片链接使用代理，并补充 TMDB 评分
+    // 转换图片链接使用代理，并补充 IMDb 评分
     if (data.subjects && Array.isArray(data.subjects)) {
       data.subjects = await Promise.all(data.subjects.map(async (item) => {
-        const tmdbInfo = await fetchTmdbInfo(item.title, type);
+        const imdbInfo = await fetchImdbInfo(item.title, type);
         return {
           ...item,
           cover: item.cover ? `/api/douban/image?url=${encodeURIComponent(item.cover)}` : item.cover,
-          ...tmdbInfo,
+          ...imdbInfo,
         };
       }));
     }

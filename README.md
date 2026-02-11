@@ -49,20 +49,21 @@
 ### 🎬 豆瓣集成
 
 - **电影 & 电视剧分类**：支持在电影和电视剧之间无缝切换，方便查找不同类型的影视资源
-- **详细影视信息**：自动获取 TMDB 评分、演员阵容、剧情简介等详细信息
+- **详细影视信息**：自动获取 IMDb 评分（通过 OMDb）、演员阵容、剧情简介等详细信息
 - **推荐系统**：基于豆瓣数据的相关推荐
 - **专业评价**：展示豆瓣用户评价和专业影评
 
-### ⭐ TMDB 评分配置
+### ⭐ IMDb 评分配置（OMDb）
 
-首页推荐卡片支持展示 TMDB 评分与跳转链接。你可以通过以下环境变量配置鉴权：
+首页推荐卡片支持展示 IMDb 评分与跳转链接（IMDb）。你可以通过以下环境变量配置鉴权：
 
 | 变量名 | 说明 |
 |--------|------|
-| `TMDB_API_READ_ACCESS_TOKEN` | TMDB API Read Access Token（推荐） |
-| `TMDB_API_KEY` | TMDB API Key（可选） |
+| `OMDB_API_KEY` | OMDb API Key（必填） |
+| `TMDB_API_READ_ACCESS_TOKEN` | TMDB Read Access Token（可选，用于中文名解析） |
+| `TMDB_API_KEY` | TMDB API Key（可选，用于中文名解析） |
 
-> 说明：至少配置以上任意一个变量即可获取 TMDB 评分。若同时存在，优先使用 Read Access Token 进行授权。
+> 说明：配置 `OMDB_API_KEY` 后即可获取 IMDb 评分；如影片名为中文，建议同时配置 `TMDB_API_READ_ACCESS_TOKEN` 或 `TMDB_API_KEY`，用于先解析出更准确的英文原名再请求 OMDb。未配置 `OMDB_API_KEY` 时将不展示评分与 IMDb 跳转。
 
 ### 💾 观看历史管理
 

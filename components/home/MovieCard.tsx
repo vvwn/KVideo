@@ -14,8 +14,8 @@ interface DoubanMovie {
   title: string;
   cover: string;
   rate: string;
-  tmdbRating?: string | null;
-  tmdbUrl?: string | null;
+  imdbRating?: string | null;
+  imdbUrl?: string | null;
   url: string;
 }
 
@@ -76,27 +76,27 @@ export const MovieCard = memo(function MovieCard({ movie, onMovieClick }: MovieC
               <p className="text-sm text-[var(--text-muted)]">暂无图片</p>
             </div>
           )}
-          {movie.tmdbUrl && (
+          {movie.imdbUrl && (
             <button
               type="button"
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                window.open(movie.tmdbUrl ?? '', '_blank', 'noopener,noreferrer');
+                window.open(movie.imdbUrl ?? '', '_blank', 'noopener,noreferrer');
               }}
               className="absolute top-2 left-2 bg-black/80 px-2.5 py-1.5 rounded-[var(--radius-full)] text-xs font-bold text-white hover:bg-black"
-              aria-label={`${movie.title} TMDB 链接`}
+              aria-label={`${movie.title} IMDb 链接`}
             >
-              TMDB
+              IMDb
             </button>
           )}
-          {movie.tmdbRating && parseFloat(movie.tmdbRating) > 0 && (
+          {movie.imdbRating && parseFloat(movie.imdbRating) > 0 && (
             <div
               className="absolute top-2 right-2 bg-black/80 px-2.5 py-1.5 flex items-center gap-1.5 rounded-[var(--radius-full)]"
             >
               <Icons.Star size={12} className="text-yellow-400 fill-yellow-400" />
               <span className="text-xs font-bold text-white">
-                TMDB {movie.tmdbRating}
+                IMDb {movie.imdbRating}
               </span>
             </div>
           )}
