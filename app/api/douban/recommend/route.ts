@@ -14,51 +14,81 @@ interface DoubanRecommendResponse {
   subjects?: DoubanSubject[];
 }
 
-interface ImdbInfo {
-  imdbRating: string | null;
-  imdbUrl: string | null;
+interface TmdbInfo {
+  tmdbRating: string | null;
+  tmdbUrl: string | null;
 }
 
-async function fetchImdbInfo(title: string, type: string): Promise<ImdbInfo> {
-  const omdbApiKey = process.env.OMDB_API_KEY;
+interface TmdbSearchItem {
+  id: number;
+  vote_average?: number;
+}
 
-  if (!omdbApiKey || !title) {
+interface TmdbSearchResponse {
+  results?: TmdbSearchItem[];
+}
+
+async function fetchTmdbInfo(title: string, type: string): Promise<TmdbInfo> {
+  const tmdbApiKey = process.env.TMDB_API_KEY;
+  const tmdbReadAccessToken = process.env.TMDB_API_READ_ACCESS_TOKEN;
+
+  if ((!tmdbApiKey && !tmdbReadAccessToken) || !title) {
     return {
-      imdbRating: null,
-      imdbUrl: null,
+      tmdbRating: null,
+      tmdbUrl: null,
     };
   }
 
   try {
-    const omdbType = type === 'tv' ? 'series' : 'movie';
-    const url = `https://www.omdbapi.com/?apikey=${encodeURIComponent(omdbApiKey)}&t=${encodeURIComponent(title)}&type=${omdbType}`;
+    const searchType = type === 'tv' ? 'tv' : 'movie';
+    const url = new URL(`https://api.themoviedb.org/3/search/${searchType}`);
+    url.searchParams.set('query', title);
+    url.searchParams.set('include_adult', 'false');
+    url.searchParams.set('language', 'zh-CN');
+
+    if (tmdbApiKey) {
+      url.searchParams.set('api_key', tmdbApiKey);
+    }
+
+    const headers: HeadersInit = {};
+    if (tmdbReadAccessToken) {
+      headers.Authorization = `Bearer ${tmdbReadAccessToken}`;
+    }
+
     const response = await fetch(url, {
+      headers,
       next: { revalidate: 86400 }, // Cache for 24 hours
     });
 
     if (!response.ok) {
       return {
-        imdbRating: null,
-        imdbUrl: null,
+        tmdbRating: null,
+        tmdbUrl: null,
       };
     }
 
-    const data = await response.json() as { Response?: string; imdbRating?: string; imdbID?: string };
-    if (data?.Response === 'True') {
+    const data = await response.json() as TmdbSearchResponse;
+    const firstResult = data.results?.[0];
+
+    if (firstResult?.id) {
+      const voteAverage = typeof firstResult.vote_average === 'number'
+        ? firstResult.vote_average.toFixed(1)
+        : null;
+
       return {
-        imdbRating: data?.imdbRating && data.imdbRating !== 'N/A' ? data.imdbRating : null,
-        imdbUrl: data?.imdbID ? `https://www.imdb.com/title/${data.imdbID}/` : null,
+        tmdbRating: voteAverage,
+        tmdbUrl: `https://www.themoviedb.org/${searchType}/${firstResult.id}`,
       };
     }
 
     return {
-      imdbRating: null,
-      imdbUrl: null,
+      tmdbRating: null,
+      tmdbUrl: null,
     };
   } catch {
     return {
-      imdbRating: null,
-      imdbUrl: null,
+      tmdbRating: null,
+      tmdbUrl: null,
     };
   }
 }
@@ -87,14 +117,14 @@ export async function GET(request: Request) {
 
     const data = await response.json() as DoubanRecommendResponse;
 
-    // 转换图片链接使用代理，并补充 IMDb 评分
+    // 转换图片链接使用代理，并补充 TMDB 评分
     if (data.subjects && Array.isArray(data.subjects)) {
       data.subjects = await Promise.all(data.subjects.map(async (item) => {
-        const imdbInfo = await fetchImdbInfo(item.title, type);
+        const tmdbInfo = await fetchTmdbInfo(item.title, type);
         return {
           ...item,
           cover: item.cover ? `/api/douban/image?url=${encodeURIComponent(item.cover)}` : item.cover,
-          ...imdbInfo,
+          ...tmdbInfo,
         };
       }));
     }
