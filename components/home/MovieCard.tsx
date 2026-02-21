@@ -14,6 +14,8 @@ interface DoubanMovie {
   title: string;
   cover: string;
   rate: string;
+  imdbRating?: string | null;
+  imdbUrl?: string | null;
   url: string;
 }
 
@@ -75,21 +77,38 @@ export const MovieCard = memo(function MovieCard({ movie, onMovieClick }: MovieC
               <p className="text-sm text-[var(--text-muted)]">暂无图片</p>
             </div>
           )}
+
           {movie.rate && parseFloat(movie.rate) > 0 && (
-            <div
-              className="absolute top-2 right-2 bg-black/80 px-2.5 py-1.5 flex items-center gap-1.5 rounded-[var(--radius-full)]"
-            >
+            <div className="absolute top-2 left-2 bg-black/80 px-2.5 py-1.5 flex items-center gap-1.5 rounded-[var(--radius-full)]">
+              <Icons.Star size={12} className="text-emerald-400 fill-emerald-400" />
+              <span className="text-xs font-bold text-white">豆瓣 {movie.rate}</span>
+            </div>
+          )}
+
+          {movie.imdbRating && parseFloat(movie.imdbRating) > 0 && (
+            <div className="absolute top-2 right-2 bg-black/80 px-2.5 py-1.5 flex items-center gap-1.5 rounded-[var(--radius-full)]">
               <Icons.Star size={12} className="text-yellow-400 fill-yellow-400" />
-              <span className="text-xs font-bold text-white">
-                {movie.rate}
-              </span>
+              <span className="text-xs font-bold text-white">IMDb {movie.imdbRating}</span>
             </div>
           )}
         </div>
-        <div className="pt-3">
+
+        <div className="pt-3 space-y-1.5">
           <h3 className="font-semibold text-sm text-center text-[var(--text-color)] line-clamp-2 group-hover:text-[var(--accent-color)] transition-colors">
             {movie.title}
           </h3>
+
+          {movie.imdbUrl && (
+            <a
+              href={movie.imdbUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block text-center text-xs text-[var(--accent-color)] hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              查看 IMDb
+            </a>
+          )}
         </div>
       </Card>
     </Link>
