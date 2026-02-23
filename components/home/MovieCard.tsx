@@ -34,6 +34,12 @@ export const MovieCard = memo(function MovieCard({ movie, onMovieClick }: MovieC
     window.open(movie.url, '_blank', 'noopener,noreferrer');
   };
 
+  const handleSearchClick = (e: MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onMovieClick(movie);
+  };
+
   return (
     <Link
       href={`/?q=${encodeURIComponent(movie.title)}`}
@@ -83,12 +89,20 @@ export const MovieCard = memo(function MovieCard({ movie, onMovieClick }: MovieC
               <p className="text-sm text-[var(--text-muted)]">暂无图片</p>
             </div>
           )}
+          <button
+            type="button"
+            onClick={handleSearchClick}
+            title="搜索影片"
+            className="absolute inset-0 m-auto h-8 w-8 flex items-center justify-center rounded-full bg-black/20 text-white/30 hover:bg-black/30 hover:text-white/70 transition-colors"
+          >
+            <Icons.Search size={14} />
+          </button>
           {movie.rate && parseFloat(movie.rate) > 0 && (
             <button
               type="button"
               onClick={handleRatingClick}
               title="跳转豆瓣详情"
-              className="absolute top-2 right-2 bg-black/80 px-2.5 py-1.5 flex items-center gap-1.5 rounded-[var(--radius-full)] hover:bg-black/90 transition-colors"
+              className="absolute top-2 right-2 z-10 bg-black/80 px-2.5 py-1.5 flex items-center gap-1.5 rounded-[var(--radius-full)] hover:bg-black/90 transition-colors"
             >
               <Icons.Star size={12} className="text-yellow-400 fill-yellow-400" />
               <span className="text-xs font-bold text-white">
