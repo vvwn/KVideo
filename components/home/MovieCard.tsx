@@ -3,7 +3,7 @@
  * Displays movie poster, title, and rating
  */
 
-import { memo, useState } from 'react';
+import { memo, useState, type MouseEvent } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Card } from '@/components/ui/Card';
@@ -25,6 +25,14 @@ interface MovieCardProps {
 export const MovieCard = memo(function MovieCard({ movie, onMovieClick }: MovieCardProps) {
   const [imageError, setImageError] = useState(false);
   const [fallbackError, setFallbackError] = useState(false);
+
+  const handleRatingClick = (e: MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!movie.url) return;
+    window.open(movie.url, '_blank', 'noopener,noreferrer');
+  };
 
   return (
     <Link
@@ -76,14 +84,17 @@ export const MovieCard = memo(function MovieCard({ movie, onMovieClick }: MovieC
             </div>
           )}
           {movie.rate && parseFloat(movie.rate) > 0 && (
-            <div
-              className="absolute top-2 right-2 bg-black/80 px-2.5 py-1.5 flex items-center gap-1.5 rounded-[var(--radius-full)]"
+            <button
+              type="button"
+              onClick={handleRatingClick}
+              title="跳转豆瓣详情"
+              className="absolute top-2 right-2 bg-black/80 px-2.5 py-1.5 flex items-center gap-1.5 rounded-[var(--radius-full)] hover:bg-black/90 transition-colors"
             >
               <Icons.Star size={12} className="text-yellow-400 fill-yellow-400" />
               <span className="text-xs font-bold text-white">
                 {movie.rate}
               </span>
-            </div>
+            </button>
           )}
         </div>
         <div className="pt-3">
