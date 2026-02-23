@@ -34,12 +34,6 @@ export const MovieCard = memo(function MovieCard({ movie, onMovieClick }: MovieC
     window.open(movie.url, '_blank', 'noopener,noreferrer');
   };
 
-  const handleSearchClick = (e: MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    onMovieClick(movie);
-  };
-
   return (
     <Link
       href={`/?q=${encodeURIComponent(movie.title)}`}
@@ -89,14 +83,6 @@ export const MovieCard = memo(function MovieCard({ movie, onMovieClick }: MovieC
               <p className="text-sm text-[var(--text-muted)]">暂无图片</p>
             </div>
           )}
-          <button
-            type="button"
-            onClick={handleSearchClick}
-            title="搜索影片"
-            className="absolute inset-0 m-auto h-8 w-8 flex items-center justify-center rounded-full bg-black/20 text-white/30 hover:bg-black/30 hover:text-white/70 transition-colors"
-          >
-            <Icons.Search size={14} />
-          </button>
           {movie.rate && parseFloat(movie.rate) > 0 && (
             <button
               type="button"
