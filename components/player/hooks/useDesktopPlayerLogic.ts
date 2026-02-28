@@ -169,6 +169,7 @@ export function useDesktopPlayerLogic({
         showVolumeBarTemporarily: volumeControls.showVolumeBarTemporarily,
         handleVolumeChange: volumeControls.handleVolumeChange,
         handleVolumeMouseDown: volumeControls.handleVolumeMouseDown,
+        handleVolumeWheel: volumeControls.handleVolumeWheel,
         toggleFullscreen: fullscreenControls.toggleFullscreen,
         togglePictureInPicture: fullscreenControls.togglePictureInPicture,
         showAirPlayMenu: fullscreenControls.showAirPlayMenu,

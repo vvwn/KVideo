@@ -63,6 +63,27 @@ export function useVolumeControls({
         handleVolumeChange(e);
     }, [isDraggingVolumeRef, handleVolumeChange]);
 
+    const handleVolumeWheel = useCallback((e: React.WheelEvent<HTMLElement>) => {
+        if (!videoRef.current) return;
+
+        e.preventDefault();
+
+        const step = 0.05;
+        const direction = e.deltaY < 0 ? 1 : -1;
+        const currentVolume = isMuted ? 0 : volume;
+        const nextVolume = Math.max(0, Math.min(1, currentVolume + direction * step));
+
+        setVolume(nextVolume);
+        videoRef.current.volume = nextVolume;
+
+        const nextMuted = nextVolume === 0;
+        setIsMuted(nextMuted);
+        localStorage.setItem('kvideo-volume', String(nextVolume));
+        localStorage.setItem('kvideo-muted', String(nextMuted));
+
+        showVolumeBarTemporarily();
+    }, [videoRef, isMuted, volume, setVolume, setIsMuted, showVolumeBarTemporarily]);
+
     useEffect(() => {
         const handleVolumeMouseMove = (e: MouseEvent) => {
             if (!isDraggingVolumeRef.current || !volumeBarRef.current || !videoRef.current) return;
@@ -95,8 +116,9 @@ export function useVolumeControls({
         toggleMute,
         showVolumeBarTemporarily,
         handleVolumeChange,
-        handleVolumeMouseDown
-    }), [toggleMute, showVolumeBarTemporarily, handleVolumeChange, handleVolumeMouseDown]);
+        handleVolumeMouseDown,
+        handleVolumeWheel
+    }), [toggleMute, showVolumeBarTemporarily, handleVolumeChange, handleVolumeMouseDown, handleVolumeWheel]);
 
     return volumeActions;
 }

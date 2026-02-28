@@ -163,6 +163,7 @@ export function DesktopVideoPlayer({
     handleTimeUpdateEvent,
     handleLoadedMetadata,
     handleVideoError,
+    handleVolumeWheel,
   } = logic;
 
   // Mobile double-tap gesture for skip forward/backward
@@ -194,6 +195,7 @@ export function DesktopVideoPlayer({
         } ${shouldForceLandscape ? 'force-landscape' : ''}`}
       onMouseMove={handleMouseMove}
       onMouseLeave={() => isPlaying && setShowControls(false)}
+      onWheel={handleVolumeWheel}
     >
       {/* Clipping Wrapper for video and overlays - Restores the 'Liquid Glass' rounded look */}
       <div className={`absolute inset-0 overflow-hidden pointer-events-none ${data.isFullscreen && fullscreenType === 'window' ? 'rounded-0' : 'rounded-[var(--radius-2xl)]'
