@@ -13,6 +13,7 @@ import { siteConfig } from "@/lib/config/site-config";
 import { AdKeywordsInjector } from "@/components/AdKeywordsInjector";
 import { BackToTop } from "@/components/ui/BackToTop";
 import { ScrollPositionManager } from "@/components/ScrollPositionManager";
+import { LocaleProvider } from "@/components/LocaleProvider";
 import fs from 'fs';
 import path from 'path';
 
@@ -101,6 +102,7 @@ export default function RootLayout({
         <ThemeProvider>
           {/* 加入自动同步组件，它会在后台默默工作，我们放在 ThemeProvider 内部的最前面 */}
           <AutoSync />
+          <LocaleProvider />
 
           <TVProvider>
             <TVNavigationInitializer />
