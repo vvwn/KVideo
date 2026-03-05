@@ -1,5 +1,7 @@
 [![Upstream Sync](https://github.com/sky06walker/KVideo/actions/workflows/Github_Upstream_Sync.yml/badge.svg)](https://github.com/sky06walker/KVideo/actions/workflows/Github_Upstream_Sync.yml)
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/KuekHaoYang/KVideo)
+
 # 视频聚合平台 (KVideo)
 
 ![KVideo Banner](public/icon.png)
