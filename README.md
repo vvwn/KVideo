@@ -2,6 +2,9 @@
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/KuekHaoYang/KVideo)
 
+# Buy Me A Coffee
+[![Buy Me A Coffee](https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20coffee&emoji=&slug=kuekhaoyang&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff)](https://www.buymeacoffee.com/kuekhaoyang)
+
 # 视频聚合平台 (KVideo)
 
 ![KVideo Banner](public/icon.png)
@@ -906,6 +909,10 @@ KVideo v4.5.0+ 已增加多级回退机制，会依次尝试 HLS.js、原生 HLS
   <br>
   如果这个项目对你有帮助，请考虑给一个 ⭐️
 </div>
+
+# Buy Me A Coffee
+# Buy Me A Coffee
+[![Buy Me A Coffee](https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20coffee&emoji=&slug=kuekhaoyang&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff)](https://www.buymeacoffee.com/kuekhaoyang)
 
 ## Star History
 
