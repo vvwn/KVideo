@@ -207,7 +207,7 @@ export function DesktopVideoPlayer({
       ref={containerRef}
       className={`kvideo-container relative aspect-video bg-black rounded-[var(--radius-2xl)] group ${data.isFullscreen && fullscreenType === 'window' ? 'is-web-fullscreen' : ''
         } ${shouldForceLandscape ? 'force-landscape' : ''}`}
-      onMouseMove={handleMouseMove}
+      onMouseMove={() => { handleMouseMove(); }}
       onMouseLeave={() => isPlaying && setShowControls(false)}
       onWheel={handleVolumeWheel}
     >
@@ -247,10 +247,10 @@ export function DesktopVideoPlayer({
             />
           )}
 
-          {/* Video Resolution Badge - shows actual resolution from video stream */}
+          {/* Video Resolution Badge - follows controls bar visibility */}
           {videoResolution && (
-            <div className="absolute top-3 left-3 z-20 pointer-events-none">
-              <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold text-white ${videoResolution.color} opacity-80`}>
+            <div className={`absolute top-3 left-3 z-20 pointer-events-none transition-opacity duration-300 ${data.showControls ? 'opacity-80' : 'opacity-0'}`}>
+              <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold text-white ${videoResolution.color}`}>
                 {videoResolution.label}
                 <span className="font-normal opacity-80">{videoResolution.width}x{videoResolution.height}</span>
               </span>

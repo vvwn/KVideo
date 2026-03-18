@@ -21,6 +21,7 @@ function PremiumHomePage() {
         totalSources,
         handleSearch,
         handleReset,
+        handleCancelSearch,
     } = usePremiumHomePage();
 
     return (
@@ -36,6 +37,7 @@ function PremiumHomePage() {
                 <SearchForm
                     onSearch={handleSearch}
                     onClear={handleReset}
+                    onCancelSearch={handleCancelSearch}
                     isLoading={loading}
                     initialQuery={query}
                     currentSource=""

@@ -23,6 +23,9 @@ export function usePremiumSettingsPage() {
     const [danmakuFontSize, setDanmakuFontSize] = useState(20);
     const [danmakuDisplayArea, setDanmakuDisplayArea] = useState(0.5);
 
+    // Content filter
+    const [blockedCategories, setBlockedCategories] = useState<string[]>([]);
+
     useEffect(() => {
         // Sources come from main settings store
         const settings = settingsStore.getSettings();
@@ -40,6 +43,9 @@ export function usePremiumSettingsPage() {
         setDanmakuOpacity(modeSettings.danmakuOpacity);
         setDanmakuFontSize(modeSettings.danmakuFontSize);
         setDanmakuDisplayArea(modeSettings.danmakuDisplayArea);
+
+        // blockedCategories is global
+        setBlockedCategories(settings.blockedCategories || []);
     }, []);
 
     // --- Source management (uses main settingsStore) ---
@@ -137,6 +143,12 @@ export function usePremiumSettingsPage() {
         savePremiumModeSetting({ danmakuDisplayArea: value });
     };
 
+    const handleBlockedCategoriesChange = (categories: string[]) => {
+        setBlockedCategories(categories);
+        const currentSettings = settingsStore.getSettings();
+        settingsStore.saveSettings({ ...currentSettings, blockedCategories: categories });
+    };
+
     return {
         premiumSources,
         isAddModalOpen,
@@ -171,5 +183,7 @@ export function usePremiumSettingsPage() {
         handleDanmakuFontSizeChange,
         danmakuDisplayArea,
         handleDanmakuDisplayAreaChange,
+        blockedCategories,
+        handleBlockedCategoriesChange,
     };
 }

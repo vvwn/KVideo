@@ -1,84 +1,94 @@
 /**
  * Parallel Streaming Search API Route
- * Searches all sources in parallel and streams results immediately as they arrive
- * No waiting - results flow in real-time
+ * Searches all sources in parallel and streams results immediately as they arrive.
+ * Supports abort via request.signal when clients disconnect.
+ * Caps results per source and total to prevent OOM.
  */
 
 import { NextRequest } from 'next/server';
 import { searchVideos } from '@/lib/api/client';
-import { getSourceById } from '@/lib/api/video-sources';
 import { getSourceName } from '@/lib/utils/source-names';
 import { traditionalToSimplified } from '@/lib/utils/chinese-convert';
 
 export const runtime = 'edge';
+
+const MAX_TOTAL_VIDEOS = 2000;
+const MAX_PAGES_PER_SOURCE = 3;
+const PER_SOURCE_TIMEOUT_MS = 20000;
 
 export async function POST(request: NextRequest) {
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
     async start(controller) {
+      // Use the request signal for abort detection
+      const signal = request.signal;
+
+      const safeSend = (data: object) => {
+        if (signal.aborted) return;
+        try {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+        } catch {
+          // Controller may be closed
+        }
+      };
+
       try {
         const body = await request.json();
-        const { query, sources: sourceConfigs, page = 1 } = body;
+        const { query, sources: sourceConfigs } = body;
 
-        // Validate input
         if (!query || typeof query !== 'string' || query.trim().length === 0) {
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({
-            type: 'error',
-            message: 'Invalid query'
-          })}\n\n`));
+          safeSend({ type: 'error', message: 'Invalid query' });
           controller.close();
           return;
         }
 
-        // Convert Traditional Chinese to Simplified Chinese for broader search compatibility
         const normalizedQuery = traditionalToSimplified(query.trim());
-
-        // Use provided sources or fallback to empty (client should provide them)
         const sources = Array.isArray(sourceConfigs) && sourceConfigs.length > 0
           ? sourceConfigs
           : [];
 
         if (sources.length === 0) {
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({
-            type: 'error',
-            message: 'No valid sources provided'
-          })}\n\n`));
+          safeSend({ type: 'error', message: 'No valid sources provided' });
           controller.close();
           return;
         }
 
-        // Send initial status
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({
-          type: 'start',
-          totalSources: sources.length
-        })}\n\n`));
+        safeSend({ type: 'start', totalSources: sources.length });
 
-
-
-        // Track progress
         let completedSources = 0;
         let totalVideosFound = 0;
-        let maxPageCount = 1;
 
-        // Search all sources in PARALLEL - don't wait for all to finish
         const searchPromises = sources.map(async (source: any) => {
-          const startTime = performance.now(); // Track start time
-          try {
+          if (signal.aborted) return;
 
-            // Search page 1 for this source
-            const result = await searchVideos(normalizedQuery, [source], 1);
-            const endTime = performance.now(); // Track end time
-            const latency = Math.round(endTime - startTime); // Calculate latency in ms
+          const startTime = performance.now();
+
+          // Per-source timeout via AbortController
+          const sourceController = new AbortController();
+          const sourceTimeout = setTimeout(
+            () => sourceController.abort(),
+            PER_SOURCE_TIMEOUT_MS
+          );
+
+          // Cascade request abort to source controller
+          const onRequestAbort = () => sourceController.abort();
+          signal.addEventListener('abort', onRequestAbort, { once: true });
+
+          try {
+            const result = await searchVideos(
+              normalizedQuery, [source], 1, sourceController.signal
+            );
+            const endTime = performance.now();
+            const latency = Math.round(endTime - startTime);
             const videos = result[0]?.results || [];
             const pagecount = result[0]?.pagecount ?? 1;
 
             completedSources++;
             totalVideosFound += videos.length;
 
-            // Stream page 1 videos immediately
-            if (videos.length > 0) {
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+            if (videos.length > 0 && !signal.aborted) {
+              safeSend({
                 type: 'videos',
                 videos: videos.map((video: any) => ({
                   ...video,
@@ -89,29 +99,35 @@ export async function POST(request: NextRequest) {
                 completedSources,
                 totalSources: sources.length,
                 latency,
-              })}\n\n`));
+              });
             }
 
-            // Send progress update for page 1
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+            safeSend({
               type: 'progress',
               completedSources,
               totalSources: sources.length,
-              totalVideosFound
-            })}\n\n`));
+              totalVideosFound,
+            });
 
-            // Auto-fetch remaining pages if pagecount > 1
-            if (pagecount > 1) {
-              const remainingPages = Array.from({ length: pagecount - 1 }, (_, i) => i + 2);
-              const pagePromises = remainingPages.map(async (pg) => {
+            // Auto-fetch remaining pages (capped)
+            if (pagecount > 1 && totalVideosFound < MAX_TOTAL_VIDEOS && !signal.aborted) {
+              const maxPages = Math.min(pagecount, MAX_PAGES_PER_SOURCE);
+              const remainingPages = Array.from(
+                { length: maxPages - 1 }, (_, i) => i + 2
+              );
+
+              for (const pg of remainingPages) {
+                if (signal.aborted || totalVideosFound >= MAX_TOTAL_VIDEOS) break;
+
                 try {
-                  const pageResult = await searchVideos(normalizedQuery, [source], pg);
+                  const pageResult = await searchVideos(
+                    normalizedQuery, [source], pg, sourceController.signal
+                  );
                   const pageVideos = pageResult[0]?.results || [];
-
                   totalVideosFound += pageVideos.length;
 
-                  if (pageVideos.length > 0) {
-                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+                  if (pageVideos.length > 0 && !signal.aborted) {
+                    safeSend({
                       type: 'videos',
                       videos: pageVideos.map((video: any) => ({
                         ...video,
@@ -122,65 +138,64 @@ export async function POST(request: NextRequest) {
                       completedSources,
                       totalSources: sources.length,
                       latency,
-                    })}\n\n`));
+                    });
                   }
 
-                  // Progress update for each additional page
-                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+                  safeSend({
                     type: 'progress',
                     completedSources,
                     totalSources: sources.length,
-                    totalVideosFound
-                  })}\n\n`));
-
-                } catch (pageError) {
-                  console.error(`[Search Parallel] Source ${source.id} page ${pg} failed:`, pageError);
+                    totalVideosFound,
+                  });
+                } catch {
+                  // Page fetch failed, continue
                 }
-              });
-
-              await Promise.all(pagePromises);
+              }
             }
-
           } catch (error) {
             const endTime = performance.now();
             const latency = Math.round(endTime - startTime);
-            // Log error but continue with other sources
-            console.error(`[Search Parallel] Source ${source.id} failed after ${latency}ms:`, error);
+            console.error(
+              `[Search] Source ${source.id} failed after ${latency}ms:`,
+              error
+            );
             completedSources++;
 
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+            safeSend({
               type: 'progress',
               completedSources,
               totalSources: sources.length,
-              totalVideosFound
-            })}\n\n`));
+              totalVideosFound,
+            });
+          } finally {
+            clearTimeout(sourceTimeout);
+            signal.removeEventListener('abort', onRequestAbort);
           }
         });
 
-        // Wait for all sources to complete
         await Promise.all(searchPromises);
 
-
-
-        // Send completion signal
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({
-          type: 'complete',
-          totalVideosFound,
-          totalSources: sources.length,
-          maxPageCount
-        })}\n\n`));
+        if (!signal.aborted) {
+          safeSend({
+            type: 'complete',
+            totalVideosFound,
+            totalSources: sources.length,
+            maxPageCount: MAX_PAGES_PER_SOURCE,
+          });
+        }
 
         controller.close();
-
       } catch (error) {
-        console.error('Search error:', error);
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({
-          type: 'error',
-          message: error instanceof Error ? error.message : 'Unknown error'
-        })}\n\n`));
+        if (!signal.aborted) {
+          console.error('Search error:', error);
+          safeSend({
+            type: 'error',
+            message: error instanceof Error ? error.message : 'Unknown error',
+          });
+        }
         controller.close();
       }
-    }
+    },
   });
 
   return new Response(stream, {
@@ -191,5 +206,3 @@ export async function POST(request: NextRequest) {
     },
   });
 }
-
-

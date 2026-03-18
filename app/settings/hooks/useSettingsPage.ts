@@ -33,6 +33,9 @@ export function useSettingsPage() {
     const [danmakuFontSize, setDanmakuFontSize] = useState(20);
     const [danmakuDisplayArea, setDanmakuDisplayArea] = useState(0.5);
 
+    // Content filter
+    const [blockedCategories, setBlockedCategories] = useState<string[]>([]);
+
     useEffect(() => {
         const settings = settingsStore.getSettings();
         setSources(settings.sources || []);
@@ -48,6 +51,7 @@ export function useSettingsPage() {
         setDanmakuOpacity(settings.danmakuOpacity);
         setDanmakuFontSize(settings.danmakuFontSize);
         setDanmakuDisplayArea(settings.danmakuDisplayArea);
+        setBlockedCategories(settings.blockedCategories || []);
     }, []);
 
     const handleSourcesChange = (newSources: VideoSource[]) => {
@@ -304,6 +308,15 @@ export function useSettingsPage() {
         });
     };
 
+    const handleBlockedCategoriesChange = (categories: string[]) => {
+        setBlockedCategories(categories);
+        const currentSettings = settingsStore.getSettings();
+        settingsStore.saveSettings({
+            ...currentSettings,
+            blockedCategories: categories,
+        });
+    };
+
     const handleRestoreDefaults = () => {
         const defaults = getDefaultSources();
         handleSourcesChange(defaults);
@@ -364,5 +377,7 @@ export function useSettingsPage() {
         handleDanmakuFontSizeChange,
         danmakuDisplayArea,
         handleDanmakuDisplayAreaChange,
+        blockedCategories,
+        handleBlockedCategoriesChange,
     };
 }

@@ -61,10 +61,14 @@
 - **搜索结果显示**：支持默认显示和合并同名源两种模式
 - **实时延迟监测**：可选实时显示各源的网络延迟
 - **清晰度标签**：自动解析并显示视频清晰度（4K/蓝光/1080P/720P/HD 等），方便快速分辨源质量
-- **实际分辨率检测**：播放视频时自动检测并显示实际视频分辨率（如 1920x1080），不依赖源标签，显示真实清晰度
+- **实际分辨率检测**：播放视频时自动检测并显示实际视频分辨率（如 1920x1080），不依赖源标签，显示真实清晰度。分辨率标签 5 秒后自动隐藏，鼠标移动时重新显示
+- **全源分辨率探测**：播放器源列表中所有源均自动通过 m3u8 清单探测实际分辨率，显示精确的分辨率标签（1080P/720P/4K 等），不仅限于当前播放的源
 - **繁体中文搜索**：自动将繁体中文转换为简体中文进行搜索，确保繁体输入也能搜到结果
 - **源过滤**：支持按源和类型筛选搜索结果，源标签支持按类型分组显示，智能合并同名分类标签，展开/折叠状态持久化记忆
 - **多级标签**：搜索结果和播放器中显示源名称和内容类型双重标签
+- **搜索取消**：搜索进行中可随时点击"取消"按钮终止搜索，释放资源
+- **内容类目过滤**：在设置中添加屏蔽关键词（如"伦理"），匹配类目的视频将自动从搜索结果中过滤
+- **搜索性能优化**：服务端支持客户端断开检测（AbortSignal），每源超时保护，总结果数上限，防止内存溢出
 
 ### 多线路折叠
 
@@ -86,6 +90,7 @@
 - **多线路折叠**：频道多线路默认显示前 3 条，可点击展开查看全部
 - **自动切源**：当视频源不可用时，自动选择延迟最低的可用源
 - **自定义请求头**：自动解析 M3U 中的 `http-user-agent` 和 `http-referrer` 属性，通过代理传递
+- **User-Agent 智能代理**：当频道指定自定义 User-Agent 时，自动走代理路径避免浏览器限制，解决 CCTV 等频道仅有声音无画面的问题
 - **流媒体代理**：内置 HLS 流代理，自动处理 CORS 问题和 M3U8 URL 重写
 - **智能内容检测**：当 content-type 不明确时，检查响应体内容自动识别 M3U8 格式，同时保持二进制流数据完整性
 - **重定向跟随**：自动跟随 HTTP 3xx 重定向，提升兼容性
@@ -167,6 +172,29 @@
 - **可安装应用**：支持将 KVideo 安装为独立应用
 - **Service Worker**：离线缓存和资源预加载
 - **全屏体验**：独立应用模式下的沉浸式体验
+- **配置同步**：iOS Safari 添加到主屏幕后，视频源和设置自动从服务端同步，无需重新配置
+
+### 跨设备配置同步
+
+解决 iOS Safari「添加到主屏幕」后 PWA 与浏览器之间 localStorage 不共享的问题（[#119](https://github.com/KuekHaoYang/KVideo/issues/119)），同时实现多设备配置共享（[#115](https://github.com/KuekHaoYang/KVideo/issues/115)）。
+
+**工作原理：**
+
+1. **服务端存储（Upstash Redis）**：用户配置通过 `/api/user/config` API 存储在 Upstash Redis 中，使用 `user:config:{profileId}` 作为 key。Edge Runtime 兼容，Cloudflare Pages / Vercel 均可部署。
+2. **自动拉取（Pull）**：应用加载时，`useConfigSync` hook 从服务端拉取配置，与本地 `updatedAt` 时间戳比较——服务端更新时自动合并到本地。
+3. **自动推送（Push）**：本地设置变更后，自动延迟 3 秒推送到服务端（防抖），避免频繁写入。
+4. **同步范围**：视频源 (`sources`)、高级源 (`premiumSources`)、订阅列表 (`subscriptions`)、屏蔽分类 (`blockedCategories`)、排序偏好 (`sortBy`)、语言 (`locale`)。
+5. **数据隔离**：按 `profileId`（SHA-256 哈希）隔离，不同账户互不影响。
+
+**使用前提：**
+
+- 需配置 Upstash Redis 环境变量（`UPSTASH_REDIS_REST_URL` 和 `UPSTASH_REDIS_REST_TOKEN`），与观看历史/收藏同步共用同一 Redis 实例。
+- 未配置 Redis 时，配置同步功能静默降级——应用正常运行，仅本地存储生效。
+
+**典型场景：**
+
+- 电脑浏览器配置了视频源 → 手机打开同一实例 → 自动拉取到相同配置
+- iOS Safari「添加到主屏幕」后打开 PWA → 自动从 Redis 同步配置，无需重新设置
 
 ### 无障碍设计
 
@@ -584,6 +612,8 @@ docker run -e PORT=8080 -p 8080:8080 --name kvideo kuekhaoyang/kvideo:latest
 | `AD_KEYWORDS` / `NEXT_PUBLIC_AD_KEYWORDS` | 广告过滤关键词 | - |
 | `AD_KEYWORDS_FILE` | 广告关键词文件路径 | - |
 | `NEXT_PUBLIC_DANMAKU_API_URL` | 弹幕聚合 API 地址 | - |
+| `UPSTASH_REDIS_REST_URL` | Upstash Redis REST URL（跨设备同步：配置、历史、收藏） | - |
+| `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis REST Token | - |
 
 ## 技术栈
 
@@ -591,7 +621,7 @@ docker run -e PORT=8080 -p 8080:8080 --name kvideo kuekhaoyang/kvideo:latest
 
 | 技术 | 版本 | 用途 |
 |------|------|------|
-| **[Next.js](https://nextjs.org/)** | 16.1.6 | React 框架，使用 App Router |
+| **[Next.js](https://nextjs.org/)** | 16.1.7 | React 框架，使用 App Router |
 | **[React](https://react.dev/)** | 19.2.4 | UI 组件库 |
 | **[TypeScript](https://www.typescriptlang.org/)** | 5.x | 类型安全的 JavaScript |
 | **[Tailwind CSS](https://tailwindcss.com/)** | 4.x | 实用优先的 CSS 框架 |

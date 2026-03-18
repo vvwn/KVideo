@@ -10,7 +10,8 @@ import { fetchWithTimeout, withRetry } from './http-utils';
 async function searchVideosBySource(
     query: string,
     source: VideoSource,
-    page: number = 1
+    page: number = 1,
+    signal?: AbortSignal
 ): Promise<{ results: VideoItem[]; source: string; responseTime: number; pagecount: number }> {
     const startTime = Date.now();
 
@@ -27,6 +28,7 @@ async function searchVideosBySource(
                     'User-Agent': 'Mozilla/5.0',
                     ...source.headers,
                 },
+                signal,
             });
 
             if (!res.ok) {
@@ -71,11 +73,12 @@ async function searchVideosBySource(
 export async function searchVideos(
     query: string,
     sources: VideoSource[],
-    page: number = 1
+    page: number = 1,
+    signal?: AbortSignal
 ): Promise<Array<{ results: VideoItem[]; source: string; responseTime?: number; pagecount?: number; error?: string }>> {
     const searchPromises = sources.map(async source => {
         try {
-            return await searchVideosBySource(query, source, page);
+            return await searchVideosBySource(query, source, page, signal);
         } catch (error) {
             return {
                 results: [],

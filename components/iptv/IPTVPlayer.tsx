@@ -200,6 +200,11 @@ export function IPTVPlayer({ channel, onClose, channels, onChannelChange, channe
     video.load();
 
     const proxiedUrl = getProxiedUrl(url, channel.httpUserAgent, channel.httpReferrer);
+    const hasCustomHeaders = !!(channel.httpUserAgent || channel.httpReferrer);
+    // When custom headers are needed, skip direct attempt (browsers cannot set
+    // User-Agent on XHR/fetch). Always go through our proxy which can forward
+    // the headers server-side. This fixes audio-only issues on CCTV and similar.
+    const initialUrl = hasCustomHeaders ? proxiedUrl : url;
 
     // Global loading timeout
     let loadingResolved = false;
@@ -315,8 +320,8 @@ export function IPTVPlayer({ channel, onClose, channels, onChannelChange, channe
         }
       };
 
-      // First try direct URL with HLS.js
-      hls.loadSource(url);
+      // First try initial URL (direct or proxied based on custom headers)
+      hls.loadSource(initialUrl);
       hls.attachMedia(video);
       hls.on(Hls.Events.MANIFEST_PARSED, (_, data) => {
         // Filter HEVC levels to prevent audio-only playback
@@ -337,12 +342,17 @@ export function IPTVPlayer({ channel, onClose, channels, onChannelChange, channe
       });
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
       // Native HLS (Safari/iOS)
-      video.src = url;
+      video.src = initialUrl;
       video.addEventListener('canplay', () => {
         markLoaded();
         video.play().catch(() => {});
       }, { once: true });
       video.addEventListener('error', () => {
+        // If direct failed, try proxy; if already proxied, fail
+        if (initialUrl === proxiedUrl) {
+          markError('播放错误');
+          return;
+        }
         video.src = proxiedUrl;
         video.addEventListener('canplay', () => {
           markLoaded();
@@ -354,12 +364,16 @@ export function IPTVPlayer({ channel, onClose, channels, onChannelChange, channe
       }, { once: true });
     } else {
       // Direct video fallback
-      video.src = url;
+      video.src = initialUrl;
       video.addEventListener('canplay', () => {
         markLoaded();
         video.play().catch(() => {});
       }, { once: true });
       video.addEventListener('error', () => {
+        if (initialUrl === proxiedUrl) {
+          markError('播放错误，请尝试其他频道');
+          return;
+        }
         video.src = proxiedUrl;
         video.addEventListener('canplay', () => {
           markLoaded();

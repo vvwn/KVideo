@@ -10,6 +10,7 @@ import { PlayerError } from '@/components/player/PlayerError';
 import { SourceInfo } from '@/components/player/EpisodeList';
 import type { VideoSource } from '@/lib/types';
 import type { VideoResolutionInfo } from '@/components/player/hooks/useVideoResolution';
+import { useResolutionProbe } from '@/lib/hooks/useResolutionProbe';
 import { useVideoPlayer } from '@/lib/hooks/useVideoPlayer';
 import { useHistory } from '@/lib/store/history-store';
 import { FavoritesSidebar } from '@/components/favorites/FavoritesSidebar';
@@ -269,6 +270,12 @@ function PlayerContent() {
   // Track detected video resolution from the player
   const [detectedResolution, setDetectedResolution] = useState<VideoResolutionInfo | null>(null);
 
+  // Probe resolution for all grouped sources (not just the playing one)
+  const probeList = useMemo(() => {
+    return groupedSources.map(s => ({ id: s.id, source: s.source }));
+  }, [groupedSources]);
+  const { resolutions: sourceResolutions } = useResolutionProbe(probeList);
+
   // Add initial history entry when video data is loaded
   useEffect(() => {
     if (videoData && playUrl && videoId) {
@@ -431,6 +438,7 @@ function PlayerContent() {
                     sources={groupedSources.length > 0 ? groupedSources : undefined}
                     currentSource={currentSourceId || source || ''}
                     currentResolution={detectedResolution}
+                    sourceResolutions={sourceResolutions}
                     onSourceChange={(newSource) => {
                       const params = new URLSearchParams();
                       params.set('id', String(newSource.id));

@@ -32,6 +32,7 @@ export function useHomePage() {
         totalSources,
         performSearch,
         resetSearch,
+        cancelSearch,
         loadCachedResults,
         applySorting,
         loadMore,
@@ -147,6 +148,10 @@ export function useHomePage() {
 
 
 
+    const handleCancelSearch = useCallback(() => {
+        cancelSearch();
+    }, [cancelSearch]);
+
     const handleReset = useCallback(() => {
         setHasSearched(false);
         setQuery('');
@@ -165,6 +170,7 @@ export function useHomePage() {
         totalSources,
         handleSearch,
         handleReset,
+        handleCancelSearch,
         loadMore,
         hasMore,
         loadingMore,

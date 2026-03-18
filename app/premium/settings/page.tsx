@@ -44,6 +44,8 @@ export default function PremiumSettingsPage() {
         handleDanmakuFontSizeChange,
         danmakuDisplayArea,
         handleDanmakuDisplayAreaChange,
+        blockedCategories,
+        handleBlockedCategoriesChange,
     } = usePremiumSettingsPage();
 
     return (
@@ -97,6 +99,8 @@ export default function PremiumSettingsPage() {
                     onRememberScrollPositionChange={handleRememberScrollPositionChange}
                     locale={locale}
                     onLocaleChange={handleLocaleChange}
+                    blockedCategories={blockedCategories}
+                    onBlockedCategoriesChange={handleBlockedCategoriesChange}
                 />
 
                 {/* Premium Source Management */}

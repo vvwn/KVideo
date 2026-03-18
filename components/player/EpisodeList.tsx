@@ -11,6 +11,7 @@ import { useKeyboardNavigation } from '@/lib/hooks/useKeyboardNavigation';
 import { settingsStore } from '@/lib/store/settings-store';
 import { extractQualityLabel } from '@/lib/utils/video';
 import type { VideoResolutionInfo } from './hooks/useVideoResolution';
+import type { ResolutionInfo } from '@/lib/hooks/useResolutionProbe';
 
 interface Episode {
   name?: string;
@@ -39,6 +40,8 @@ interface EpisodeListProps {
   onSourceChange?: (source: SourceInfo) => void;
   // Actual detected resolution for the current source
   currentResolution?: VideoResolutionInfo | null;
+  // Probed resolutions for all sources (key: "source:id")
+  sourceResolutions?: Record<string, ResolutionInfo | null>;
 }
 
 export function EpisodeList({
@@ -51,6 +54,7 @@ export function EpisodeList({
   currentSource,
   onSourceChange,
   currentResolution,
+  sourceResolutions,
 }: EpisodeListProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -62,6 +66,22 @@ export function EpisodeList({
   const [isLoadingLatency, setIsLoadingLatency] = useState(false);
 
   const showSourceSelector = sources && sources.length > 1 && onSourceChange;
+
+  // Helper: get best resolution badge for a source
+  const getResBadge = useCallback((source: SourceInfo, isCurrent: boolean) => {
+    // For current source, prefer actual detected resolution from video element
+    if (isCurrent && currentResolution) {
+      return { label: currentResolution.label, color: currentResolution.color };
+    }
+    // Check probed resolution from m3u8 manifest
+    const probeKey = `${source.source}:${source.id}`;
+    const probed = sourceResolutions?.[probeKey];
+    if (probed) {
+      return { label: probed.label, color: probed.color };
+    }
+    // Fall back to quality label parsed from remarks
+    return extractQualityLabel(source.remarks) || null;
+  }, [currentResolution, sourceResolutions]);
 
   // Current source info
   const currentSourceInfo = useMemo(() => {
@@ -331,18 +351,10 @@ export function EpisodeList({
                                     <div className="font-medium text-sm truncate flex items-center gap-1.5">
                                       {source.sourceName || source.source}
                                       {(() => {
-                                        // For the current source, prefer actual detected resolution
-                                        if (isCurrent && currentResolution) {
-                                          return (
-                                            <span className={`inline-flex items-center px-1 py-0 rounded text-[9px] font-bold text-white ${currentResolution.color}`}>
-                                              {currentResolution.label}
-                                            </span>
-                                          );
-                                        }
-                                        const qb = extractQualityLabel(source.remarks);
-                                        return qb ? (
-                                          <span className={`inline-flex items-center px-1 py-0 rounded text-[9px] font-bold text-white ${qb.color}`}>
-                                            {qb.label}
+                                        const badge = getResBadge(source, isCurrent);
+                                        return badge ? (
+                                          <span className={`inline-flex items-center px-1 py-0 rounded text-[9px] font-bold text-white ${badge.color}`}>
+                                            {badge.label}
                                           </span>
                                         ) : null;
                                       })()}
@@ -419,18 +431,10 @@ export function EpisodeList({
                                 <div className="font-medium text-sm truncate flex items-center gap-1.5">
                                   {source.sourceName || source.source}
                                   {(() => {
-                                    // For the current source, prefer actual detected resolution
-                                    if (isCurrent && currentResolution) {
-                                      return (
-                                        <span className={`inline-flex items-center px-1 py-0 rounded text-[9px] font-bold text-white ${currentResolution.color}`}>
-                                          {currentResolution.label}
-                                        </span>
-                                      );
-                                    }
-                                    const qb = extractQualityLabel(source.remarks);
-                                    return qb ? (
-                                      <span className={`inline-flex items-center px-1 py-0 rounded text-[9px] font-bold text-white ${qb.color}`}>
-                                        {qb.label}
+                                    const badge = getResBadge(source, isCurrent);
+                                    return badge ? (
+                                      <span className={`inline-flex items-center px-1 py-0 rounded text-[9px] font-bold text-white ${badge.color}`}>
+                                        {badge.label}
                                       </span>
                                     ) : null;
                                   })()}

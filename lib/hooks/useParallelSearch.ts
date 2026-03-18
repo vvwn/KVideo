@@ -16,6 +16,7 @@ interface ParallelSearchResult {
   totalVideosFound: number;
   performSearch: (query: string, sources?: any[], sortBy?: SortOption) => Promise<void>;
   resetSearch: () => void;
+  cancelSearch: () => void;
   loadCachedResults: (results: Video[], sources: any[]) => void;
   applySorting: (sortBy: SortOption) => void;
   loadMore: () => Promise<void>;
@@ -85,6 +86,7 @@ export function useParallelSearch(
     totalVideosFound,
     performSearch,
     resetSearch,
+    cancelSearch,
     loadCachedResults,
     applySorting,
     loadMore: loadMoreAction,

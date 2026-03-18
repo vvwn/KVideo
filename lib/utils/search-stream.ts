@@ -1,6 +1,16 @@
 import { Video } from '@/lib/types';
 import { getSourceName } from '@/lib/utils/source-names';
 import { calculateRelevanceScore, hasMinimumMatch } from '@/lib/utils/search';
+import { settingsStore } from '@/lib/store/settings-store';
+
+/**
+ * Check if a video's category matches any blocked keyword.
+ */
+function isCategoryBlocked(video: any, blockedCategories: string[]): boolean {
+    if (blockedCategories.length === 0) return false;
+    const typeName = (video.type_name || video.vod_class || '').toLowerCase();
+    return blockedCategories.some(cat => typeName.includes(cat.toLowerCase()));
+}
 
 interface StreamHandlerParams {
     reader: ReadableStreamDefaultReader<Uint8Array>;
@@ -43,6 +53,7 @@ export async function processSearchStream({
 
     try {
         resetTimeout(); // Start initial timeout
+        const blockedCategories = settingsStore.getSettings().blockedCategories;
 
         while (true) {
             const { done, value } = await reader.read();
@@ -64,6 +75,7 @@ export async function processSearchStream({
                     } else if (data.type === 'videos') {
                         const newVideos: Video[] = data.videos
                             .filter((video: any) => hasMinimumMatch(video.vod_name, currentQuery))
+                            .filter((video: any) => !isCategoryBlocked(video, blockedCategories))
                             .map((video: any) => ({
                                 ...video,
                                 sourceName: video.sourceDisplayName || getSourceName(video.source),

@@ -6,6 +6,7 @@ import { SearchBox } from './SearchBox';
 interface SearchFormProps {
   onSearch: (query: string) => void;
   onClear?: () => void;
+  onCancelSearch?: () => void;
   isLoading: boolean;
   initialQuery?: string;
   currentSource?: string;
@@ -18,6 +19,7 @@ interface SearchFormProps {
 export function SearchForm({
   onSearch,
   onClear,
+  onCancelSearch,
   isLoading,
   initialQuery = '',
   currentSource = '',
@@ -43,6 +45,7 @@ export function SearchForm({
             currentSource={currentSource}
             checkedSources={checkedSources}
             totalSources={totalSources}
+            onCancel={onCancelSearch}
           />
         </div>
       )}

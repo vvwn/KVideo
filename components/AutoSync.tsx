@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useHistoryStore } from '@/lib/store/history-store';
 import { useFavoritesStore } from '@/lib/store/favorites-store';
 import { useCloudSync } from '@/lib/hooks/useCloudSync';
+import { useConfigSync } from '@/lib/hooks/useConfigSync';
 import { getSession } from '@/lib/store/auth-store';
 
 // 防抖函数，防止频繁请求
@@ -17,6 +18,9 @@ function debounce(fn: Function, delay: number) {
 
 export function AutoSync() {
   const { pushToCloud, pullFromCloud } = useCloudSync();
+
+  // Config sync (sources, settings) — works without Redis, file-based
+  useConfigSync();
 
   useEffect(() => {
     const session = getSession();
