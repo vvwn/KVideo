@@ -32,6 +32,7 @@ export function HistoryItem({ item, onRemove, isPremium = false }: HistoryItemPr
         id: videoId,
         source: sourceName,
         sourceName: getSourceName(sourceName),
+        pic: item.poster,
       }));
       const cacheKey = storeGroupedSources(groupData);
       if (cacheKey) {
@@ -101,6 +102,7 @@ export function HistoryItem({ item, onRemove, isPremium = false }: HistoryItemPr
               title={item.title}
               poster={item.poster}
               remarks={episodeText}
+              sourceMap={item.sourceMap}
               size={14}
               className="!p-1.5 !bg-transparent !border-0 !shadow-none hover:!bg-[var(--glass-bg)]"
               showTooltip={false}

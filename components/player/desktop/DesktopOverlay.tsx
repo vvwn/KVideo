@@ -17,6 +17,8 @@ interface DesktopOverlayProps {
     showToast: boolean;
     toastMessage: string | null;
     showControls: boolean;
+    isFullscreen: boolean;
+    fullscreenClock: string;
     onTogglePlay: () => void;
     onSkipForward: () => void;
     onSkipBackward: () => void;
@@ -34,6 +36,8 @@ interface DesktopOverlayProps {
     onSpeedChange: (speed: number) => void;
     onSpeedMenuMouseEnter: () => void;
     onSpeedMenuMouseLeave: () => void;
+    webFullscreenSize: 'full' | 'large' | 'focused';
+    onCycleWebFullscreenSize: () => void;
     containerRef: React.RefObject<HTMLDivElement | null>;
     isRotated?: boolean;
 }
@@ -50,6 +54,8 @@ export function DesktopOverlay({
     isSkipBackwardAnimatingOut,
     showToast,
     toastMessage,
+    isFullscreen,
+    fullscreenClock,
     onTogglePlay,
     onSkipForward,
     onSkipBackward,
@@ -67,6 +73,8 @@ export function DesktopOverlay({
     onSpeedChange,
     onSpeedMenuMouseEnter,
     onSpeedMenuMouseLeave,
+    webFullscreenSize,
+    onCycleWebFullscreenSize,
     containerRef,
     isRotated = false,
 }: DesktopOverlayProps) {
@@ -84,10 +92,28 @@ export function DesktopOverlay({
                     onMouseEnter={onMoreMenuMouseEnter}
                     onMouseLeave={onMoreMenuMouseLeave}
                     onCopyLink={onCopyLink}
+                    webFullscreenSize={webFullscreenSize}
+                    onCycleWebFullscreenSize={onCycleWebFullscreenSize}
                     containerRef={containerRef}
                     isRotated={isRotated}
                 />
             </div>
+
+            {isFullscreen && fullscreenClock && (
+                <div
+                    className={`absolute top-8 left-1/2 -translate-x-1/2 z-40 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-70'}`}
+                    style={{ pointerEvents: 'none' }}
+                >
+                    <div className="min-w-[88px] px-4 py-2 rounded-full bg-black/45 backdrop-blur-md border border-white/15 text-center shadow-[0_10px_30px_rgba(0,0,0,0.3)]">
+                        <div className="flex items-center justify-center gap-2 text-white">
+                            <Icons.Clock size={14} className="opacity-80" />
+                            <span className="text-sm font-semibold tracking-[0.18em] tabular-nums">
+                                {fullscreenClock}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Speed Menu (Top Right) - Moved slightly down and lower z-index */}
             <div className={`absolute top-8 right-6 z-40 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`} style={{ pointerEvents: showControls ? 'auto' : 'none' }}>

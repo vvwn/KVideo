@@ -80,6 +80,16 @@
     pointer-events: none;
 }
 
+.slider-buffer {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.4);
+    border-radius: var(--radius-full);
+    pointer-events: none;
+}
+
 .slider-thumb {
     position: absolute;
     top: 50%;

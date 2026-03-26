@@ -42,6 +42,10 @@ interface EpisodeListProps {
   currentResolution?: VideoResolutionInfo | null;
   // Probed resolutions for all sources (key: "source:id")
   sourceResolutions?: Record<string, ResolutionInfo | null>;
+  sourceSectionCollapsed?: boolean;
+  onSourceSectionCollapseChange?: (collapsed: boolean) => void;
+  episodeSectionCollapsed?: boolean;
+  onEpisodeSectionCollapseChange?: (collapsed: boolean) => void;
 }
 
 export function EpisodeList({
@@ -55,6 +59,10 @@ export function EpisodeList({
   onSourceChange,
   currentResolution,
   sourceResolutions,
+  sourceSectionCollapsed = false,
+  onSourceSectionCollapseChange,
+  episodeSectionCollapsed = false,
+  onEpisodeSectionCollapseChange,
 }: EpisodeListProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -88,6 +96,12 @@ export function EpisodeList({
     if (!sources || !currentSource) return null;
     return sources.find(s => s.source === currentSource) || null;
   }, [sources, currentSource]);
+
+  useEffect(() => {
+    if (sourceSectionCollapsed) {
+      setSourceExpanded(false);
+    }
+  }, [sourceSectionCollapsed]);
 
   // Sort sources by latency
   const sortedSources = useMemo(() => {
@@ -214,7 +228,7 @@ export function EpisodeList({
 
   // Keyboard navigation
   useKeyboardNavigation({
-    enabled: true,
+    enabled: !episodeSectionCollapsed,
     containerRef: listRef,
     currentIndex: getDisplayIndex(currentEpisode),
     itemCount: episodes?.length || 0,
@@ -237,51 +251,88 @@ export function EpisodeList({
   });
 
   const showReverseToggle = episodes && episodes.length > 1;
+  const currentEpisodeLabel = episodes?.[currentEpisode]?.name || `第${currentEpisode + 1}集`;
 
   return (
     <Card hover={false}>
-      {/* Integrated Source Selector Header */}
       {showSourceSelector && (
         <div className="mb-4">
-          <button
-            onClick={() => setSourceExpanded(!sourceExpanded)}
-            className="w-full flex items-center justify-between p-3 rounded-[var(--radius-2xl)] bg-[var(--glass-bg)] border border-[var(--glass-border)] hover:bg-[var(--glass-hover)] transition-all duration-200"
-          >
+          <div className="flex items-center gap-2 mb-3">
             <div className="flex items-center gap-2 min-w-0">
-              <Icons.Layers size={16} className="flex-shrink-0 text-[var(--text-color-secondary)]" />
-              <span className="text-sm font-medium text-[var(--text-color)] truncate">
-                {currentSourceInfo?.sourceName || currentSourceInfo?.source || '当前来源'}
+              <Icons.Layers size={18} className="text-[var(--text-color)]" />
+              <span className="text-base sm:text-lg font-semibold text-[var(--text-color)]">
+                源列表
               </span>
-              {currentResolution && (
-                <span className={`inline-flex items-center px-1 py-0 rounded text-[9px] font-bold text-white ${currentResolution.color} flex-shrink-0`}>
-                  {currentResolution.label}
-                </span>
-              )}
-              <Badge variant="primary" className="flex-shrink-0">{sources!.length}</Badge>
+              <Badge variant="primary">{sources!.length}</Badge>
             </div>
-            <Icons.ChevronDown
-              size={16}
-              className={`flex-shrink-0 text-[var(--text-color-secondary)] transition-transform duration-200 ${sourceExpanded ? 'rotate-180' : ''}`}
-            />
-          </button>
+            <button
+              onClick={() => onSourceSectionCollapseChange?.(!sourceSectionCollapsed)}
+              className="ml-auto p-1.5 rounded-[var(--radius-2xl)] bg-[var(--glass-bg)] text-[var(--text-color-secondary)] hover:bg-[var(--glass-hover)] border border-[var(--glass-border)] transition-all duration-200 cursor-pointer"
+              aria-label={sourceSectionCollapsed ? '展开源列表' : '折叠源列表'}
+              title={sourceSectionCollapsed ? '展开源列表' : '折叠源列表'}
+            >
+              <Icons.ChevronDown
+                size={16}
+                className={`transition-transform duration-200 ${sourceSectionCollapsed ? '-rotate-90' : 'rotate-0'}`}
+              />
+            </button>
+          </div>
 
-          {/* Expanded source list */}
-          {sourceExpanded && (
-            <div className="mt-2 space-y-2">
-              <div className="flex justify-end">
+          <div className="p-3 rounded-[var(--radius-2xl)] bg-[var(--glass-bg)] border border-[var(--glass-border)]">
+            <div className="flex items-start gap-3">
+              <button
+                onClick={() => {
+                  if (!sourceSectionCollapsed) {
+                    setSourceExpanded(!sourceExpanded);
+                  }
+                }}
+                className={`flex-1 min-w-0 flex items-center justify-between gap-3 text-left ${sourceSectionCollapsed ? 'cursor-default' : 'cursor-pointer'}`}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-sm font-medium text-[var(--text-color)] truncate">
+                    {currentSourceInfo?.sourceName || currentSourceInfo?.source || '当前来源'}
+                  </span>
+                  {currentResolution && (
+                    <span className={`inline-flex items-center px-1 py-0 rounded text-[9px] font-bold text-white ${currentResolution.color} flex-shrink-0`}>
+                      {currentResolution.label}
+                    </span>
+                  )}
+                </div>
+                {!sourceSectionCollapsed && (
+                  <Icons.ChevronDown
+                    size={16}
+                    className={`flex-shrink-0 text-[var(--text-color-secondary)] transition-transform duration-200 ${sourceExpanded ? 'rotate-180' : 'rotate-0'}`}
+                  />
+                )}
+              </button>
+
+              {!sourceSectionCollapsed && (
                 <Button
                   variant="secondary"
-                  onClick={(e) => {
-                    e.stopPropagation();
+                  onClick={(event) => {
+                    event.stopPropagation();
                     refreshLatencies();
                   }}
                   disabled={isLoadingLatency}
-                  className="flex items-center gap-1.5 text-xs px-2.5 py-1"
+                  className="flex items-center gap-1.5 text-xs px-2.5 py-1 min-h-[36px] md:px-3 md:py-1.5 md:text-sm"
                 >
                   <Icons.RefreshCw size={12} className={isLoadingLatency ? 'animate-spin' : ''} />
                   刷新延迟
                 </Button>
-              </div>
+              )}
+            </div>
+
+            <div className="mt-2 flex items-center gap-2 text-xs text-[var(--text-color-secondary)]">
+              <span className="truncate">
+                当前线路：{currentSourceInfo?.sourceName || currentSourceInfo?.source || '未知来源'}
+              </span>
+              <span className="shrink-0">共 {sources!.length} 条</span>
+            </div>
+          </div>
+
+          {/* Expanded source list */}
+          {!sourceSectionCollapsed && sourceExpanded && (
+            <div className="mt-2 space-y-2">
               {(() => {
                 const MAX_VISIBLE = 5;
                 const visibleSources = showAllSources ? sortedSources : sortedSources.slice(0, MAX_VISIBLE);
@@ -487,15 +538,14 @@ export function EpisodeList({
         </div>
       )}
 
-      {/* Episode List Header */}
-      <h3 className="text-lg sm:text-xl font-bold text-[var(--text-color)] mb-4 flex items-center gap-2">
+      <div className="text-lg sm:text-xl font-bold text-[var(--text-color)] mb-4 flex items-center gap-2">
         <Icons.List size={20} className="sm:w-6 sm:h-6" />
         <span>选集</span>
         {episodes && (
           <Badge variant="primary">{episodes.length}</Badge>
         )}
         {/* Reverse order toggle button - only show when more than 1 episode */}
-        {showReverseToggle && (
+        {showReverseToggle && !episodeSectionCollapsed && (
           <button
             onClick={() => onToggleReverse?.(!isReversed)}
             className={`
@@ -511,62 +561,84 @@ export function EpisodeList({
             <Icons.ArrowUpDown size={16} />
           </button>
         )}
-      </h3>
-
-      <div
-        ref={listRef}
-        className="max-h-[400px] sm:max-h-[600px] overflow-y-auto space-y-2 pr-2"
-        role="radiogroup"
-        aria-label="剧集选择"
-      >
-        {displayEpisodes && displayEpisodes.length > 0 ? (
-          displayEpisodes.map((episode, displayIndex) => {
-            const originalIndex = getOriginalIndex(displayIndex);
-            const isCurrentEpisode = currentEpisode === originalIndex;
-
-            return (
-              <button
-                key={originalIndex}
-                ref={(el) => { buttonRefs.current[displayIndex] = el; }}
-                onClick={() => onEpisodeClick(episode, originalIndex)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    onEpisodeClick(episode, originalIndex);
-                  }
-                }}
-                tabIndex={0}
-                role="radio"
-                aria-checked={isCurrentEpisode}
-                aria-current={isCurrentEpisode ? 'true' : undefined}
-                aria-label={`${episode.name || `第 ${originalIndex + 1} 集`}${isCurrentEpisode ? '，当前播放' : ''}`}
-                className={`
-                  w-full px-3 py-2 sm:px-4 sm:py-3 rounded-[var(--radius-2xl)] text-left transition-[var(--transition-fluid)] cursor-pointer
-                  ${isCurrentEpisode
-                    ? 'bg-[var(--accent-color)] text-white shadow-[0_4px_12px_color-mix(in_srgb,var(--accent-color)_50%,transparent)] brightness-110'
-                    : 'bg-[var(--glass-bg)] hover:bg-[var(--glass-hover)] text-[var(--text-color)] border border-[var(--glass-border)]'
-                  }
-                  focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] focus-visible:ring-offset-2
-                `}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-medium text-sm sm:text-base">
-                    {episode.name || `第 ${originalIndex + 1} 集`}
-                  </span>
-                  {isCurrentEpisode && (
-                    <Icons.Play size={16} />
-                  )}
-                </div>
-              </button>
-            );
-          })
-        ) : (
-          <div className="text-center py-8 text-[var(--text-secondary)]">
-            <Icons.Inbox size={48} className="text-[var(--text-color-secondary)] mx-auto mb-2" />
-            <p>暂无剧集信息</p>
-          </div>
-        )}
+        <button
+          onClick={() => onEpisodeSectionCollapseChange?.(!episodeSectionCollapsed)}
+          className="p-1.5 rounded-[var(--radius-2xl)] bg-[var(--glass-bg)] text-[var(--text-color-secondary)] hover:bg-[var(--glass-hover)] border border-[var(--glass-border)] transition-all duration-200 cursor-pointer"
+          aria-label={episodeSectionCollapsed ? '展开选集列表' : '折叠选集列表'}
+          title={episodeSectionCollapsed ? '展开选集列表' : '折叠选集列表'}
+        >
+          <Icons.ChevronDown
+            size={16}
+            className={`transition-transform duration-200 ${episodeSectionCollapsed ? '-rotate-90' : 'rotate-0'}`}
+          />
+        </button>
       </div>
+
+      {episodeSectionCollapsed ? (
+        <div className="rounded-[var(--radius-2xl)] border border-[var(--glass-border)] bg-[var(--glass-bg)] p-3">
+          <div className="flex items-center justify-between gap-3 text-sm">
+            <span className="text-[var(--text-color-secondary)]">当前选集</span>
+            <span className="font-medium text-[var(--text-color)] truncate">
+              {currentEpisodeLabel}
+            </span>
+          </div>
+        </div>
+      ) : (
+        <div
+          ref={listRef}
+          className="max-h-[400px] sm:max-h-[600px] overflow-y-auto space-y-2 pr-2"
+          role="radiogroup"
+          aria-label="剧集选择"
+        >
+          {displayEpisodes && displayEpisodes.length > 0 ? (
+            displayEpisodes.map((episode, displayIndex) => {
+              const originalIndex = getOriginalIndex(displayIndex);
+              const isCurrentEpisode = currentEpisode === originalIndex;
+
+              return (
+                <button
+                  key={originalIndex}
+                  ref={(el) => { buttonRefs.current[displayIndex] = el; }}
+                  onClick={() => onEpisodeClick(episode, originalIndex)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      onEpisodeClick(episode, originalIndex);
+                    }
+                  }}
+                  tabIndex={0}
+                  role="radio"
+                  aria-checked={isCurrentEpisode}
+                  aria-current={isCurrentEpisode ? 'true' : undefined}
+                  aria-label={`${episode.name || `第 ${originalIndex + 1} 集`}${isCurrentEpisode ? '，当前播放' : ''}`}
+                  className={`
+                    w-full px-3 py-2 sm:px-4 sm:py-3 rounded-[var(--radius-2xl)] text-left transition-[var(--transition-fluid)] cursor-pointer
+                    ${isCurrentEpisode
+                      ? 'bg-[var(--accent-color)] text-white shadow-[0_4px_12px_color-mix(in_srgb,var(--accent-color)_50%,transparent)] brightness-110'
+                      : 'bg-[var(--glass-bg)] hover:bg-[var(--glass-hover)] text-[var(--text-color)] border border-[var(--glass-border)]'
+                    }
+                    focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] focus-visible:ring-offset-2
+                  `}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-sm sm:text-base">
+                      {episode.name || `第 ${originalIndex + 1} 集`}
+                    </span>
+                    {isCurrentEpisode && (
+                      <Icons.Play size={16} />
+                    )}
+                  </div>
+                </button>
+              );
+            })
+          ) : (
+            <div className="text-center py-8 text-[var(--text-secondary)]">
+              <Icons.Inbox size={48} className="text-[var(--text-color-secondary)] mx-auto mb-2" />
+              <p>暂无剧集信息</p>
+            </div>
+          )}
+        </div>
+      )}
     </Card>
   );
 }

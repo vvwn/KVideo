@@ -27,11 +27,13 @@ const ALL_PERMISSIONS: { key: Permission; label: string }[] = [
   { key: 'player_settings', label: '播放器设置' },
   { key: 'danmaku_appearance', label: '弹幕外观' },
   { key: 'iptv_access', label: 'IPTV 访问' },
+  { key: 'iptv_source_management', label: 'IPTV 自定义源管理' },
+  { key: 'iptv_builtin_sources', label: 'IPTV 内置源' },
 ];
 
 const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
-  super_admin: ['source_management', 'account_management', 'danmaku_api', 'data_management', 'player_settings', 'danmaku_appearance', 'view_settings', 'iptv_access'],
-  admin: ['player_settings', 'danmaku_appearance', 'view_settings', 'iptv_access'],
+  super_admin: ['source_management', 'account_management', 'danmaku_api', 'data_management', 'player_settings', 'danmaku_appearance', 'view_settings', 'iptv_access', 'iptv_source_management', 'iptv_builtin_sources'],
+  admin: ['player_settings', 'danmaku_appearance', 'view_settings', 'iptv_access', 'iptv_source_management', 'iptv_builtin_sources'],
   viewer: ['view_settings'],
 };
 

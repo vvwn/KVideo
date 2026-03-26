@@ -13,11 +13,13 @@ export type Permission =
   | 'player_settings'
   | 'danmaku_appearance'
   | 'view_settings'
-  | 'iptv_access';
+  | 'iptv_access'
+  | 'iptv_source_management'
+  | 'iptv_builtin_sources';
 
 const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
-  super_admin: ['source_management', 'account_management', 'danmaku_api', 'data_management', 'player_settings', 'danmaku_appearance', 'view_settings', 'iptv_access'],
-  admin: ['player_settings', 'danmaku_appearance', 'view_settings', 'iptv_access'],
+  super_admin: ['source_management', 'account_management', 'danmaku_api', 'data_management', 'player_settings', 'danmaku_appearance', 'view_settings', 'iptv_access', 'iptv_source_management', 'iptv_builtin_sources'],
+  admin: ['player_settings', 'danmaku_appearance', 'view_settings', 'iptv_access', 'iptv_source_management', 'iptv_builtin_sources'],
   viewer: ['view_settings'],
 };
 
@@ -77,9 +79,18 @@ export function isAdmin(): boolean {
 export function hasPermission(permission: Permission): boolean {
   const session = getSession();
   if (!session) return true; // No auth configured = full access
-  if (ROLE_PERMISSIONS[session.role]?.includes(permission)) return true;
-  if (session.customPermissions?.includes(permission)) return true;
-  return false;
+
+  const permissions = new Set<Permission>([
+    ...(ROLE_PERMISSIONS[session.role] || []),
+    ...(session.customPermissions || []),
+  ]);
+
+  // IPTV access should include managing personal IPTV sources by default.
+  if (permission === 'iptv_source_management' && permissions.has('iptv_access')) {
+    return true;
+  }
+
+  return permissions.has(permission);
 }
 
 export function hasRole(minimumRole: Role): boolean {

@@ -168,6 +168,7 @@ export const VideoGroupCard = memo<VideoGroupCardProps>(({
                                 type={representative.type_name}
                                 year={representative.vod_year}
                                 remarks={representative.vod_remarks}
+                                sourceMap={Object.fromEntries(videos.map((video) => [video.source, video.vod_id]))}
                                 size={16}
                                 className="shadow-md"
                                 isPremium={isPremium}

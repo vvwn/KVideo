@@ -29,6 +29,7 @@ export function TypeBadgeItem({
 
   return (
     <button
+      type="button"
       ref={innerRef}
       onClick={handleClick}
       onFocus={onFocus}

@@ -2,7 +2,6 @@
 
 import { Suspense, useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/Button';
 import { VideoPlayer } from '@/components/player/VideoPlayer';
 import { VideoMetadata } from '@/components/player/VideoMetadata';
 import { EpisodeList } from '@/components/player/EpisodeList';
@@ -21,6 +20,16 @@ import { premiumModeSettingsStore } from '@/lib/store/premium-mode-settings';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { getSourceName } from '@/lib/utils/source-names';
 import { retrieveGroupedSources, storeGroupedSources } from '@/lib/utils/grouped-sources-cache';
+
+type PlayerViewportMode = 'standard' | 'wide' | 'cinema';
+
+const PLAYER_VIEWPORT_MODE_KEY = 'kvideo-player-viewport-mode';
+const PLAYER_VIEWPORT_MODE_ORDER: PlayerViewportMode[] = ['standard', 'wide', 'cinema'];
+const PLAYER_VIEWPORT_MODE_LABELS: Record<PlayerViewportMode, string> = {
+  standard: '标准',
+  wide: '宽屏',
+  cinema: '影院',
+};
 
 function PlayerContent() {
   const searchParams = useSearchParams();
@@ -44,11 +53,22 @@ function PlayerContent() {
 
   // Mobile tab state
   const [activeTab, setActiveTab] = useState<'episodes' | 'info'>('episodes');
+  const [playerViewportMode, setPlayerViewportMode] = useState<PlayerViewportMode>(() => {
+    if (typeof window === 'undefined') return 'standard';
+    const saved = localStorage.getItem(PLAYER_VIEWPORT_MODE_KEY);
+    return saved === 'wide' || saved === 'cinema' || saved === 'standard' ? saved : 'standard';
+  });
+  const [isSourceSectionCollapsed, setIsSourceSectionCollapsed] = useState(false);
+  const [isEpisodeSectionCollapsed, setIsEpisodeSectionCollapsed] = useState(false);
 
   // Sync with store changes if any (though usually it's one-way from UI to store)
   useEffect(() => {
     setIsReversed(modeStore.getSettings().episodeReverseOrder);
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem(PLAYER_VIEWPORT_MODE_KEY, playerViewportMode);
+  }, [playerViewportMode]);
 
   // Migrate legacy long groupedSources URL to short gs key
   useEffect(() => {
@@ -341,6 +361,19 @@ function PlayerContent() {
     }
   }, [videoData, currentEpisode, isReversed, router, searchParams]); // handleEpisodeClick is not memoized, but uses stable hooks setters. wait, handleEpisodeClick is inline too!
 
+  const effectivePlayerViewportMode = useMemo<PlayerViewportMode>(() => {
+    const manualIndex = PLAYER_VIEWPORT_MODE_ORDER.indexOf(playerViewportMode);
+    const collapsedCount = Number(isSourceSectionCollapsed) + Number(isEpisodeSectionCollapsed);
+    const autoIndex = Math.min(collapsedCount, PLAYER_VIEWPORT_MODE_ORDER.length - 1);
+    return PLAYER_VIEWPORT_MODE_ORDER[Math.max(manualIndex, autoIndex)];
+  }, [playerViewportMode, isSourceSectionCollapsed, isEpisodeSectionCollapsed]);
+
+  const playerGridClass = effectivePlayerViewportMode === 'cinema'
+    ? 'xl:grid-cols-[minmax(0,1.9fr)_minmax(280px,0.55fr)]'
+    : effectivePlayerViewportMode === 'wide'
+      ? 'xl:grid-cols-[minmax(0,1.65fr)_minmax(300px,0.72fr)]'
+      : 'xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.9fr)]';
+
   return (
     <div className="min-h-screen bg-[var(--bg-color)]">
       {/* Glass Navbar */}
@@ -359,9 +392,30 @@ function PlayerContent() {
             onRetry={fetchVideoDetails}
           />
         ) : (
-          <div className="grid lg:grid-cols-3 gap-6">
+          <div className={`grid gap-6 lg:grid-cols-3 ${playerGridClass}`}>
             {/* Video Player Section */}
-            <div className="lg:col-span-2 space-y-6">
+            <div className="lg:col-span-2 xl:col-span-1 space-y-6">
+              <div className="hidden lg:flex items-center justify-between gap-4 rounded-[var(--radius-2xl)] border border-[var(--glass-border)] bg-[var(--glass-bg)] p-4">
+                <div>
+                  <div className="text-sm font-semibold text-[var(--text-color)]">
+                    播放窗口大小
+                  </div>
+                  <div className="text-xs text-[var(--text-color-secondary)] mt-1">
+                    右侧源列表或选集折叠后，会自动提升到更宽的布局
+                    {effectivePlayerViewportMode !== playerViewportMode && `，当前已自动切到${PLAYER_VIEWPORT_MODE_LABELS[effectivePlayerViewportMode]}`}
+                  </div>
+                </div>
+                <SegmentedControl<PlayerViewportMode>
+                  options={[
+                    { label: '标准', value: 'standard' },
+                    { label: '宽屏', value: 'wide' },
+                    { label: '影院', value: 'cinema' },
+                  ]}
+                  value={playerViewportMode}
+                  onChange={setPlayerViewportMode}
+                  className="min-w-[240px]"
+                />
+              </div>
               <VideoPlayer
                 playUrl={playUrl}
                 videoId={videoId || undefined}
@@ -394,6 +448,9 @@ function PlayerContent() {
                     poster={videoData.vod_pic}
                     type={videoData.type_name}
                     year={videoData.vod_year}
+                    sourceMap={Object.fromEntries(
+                      (groupedSources.length > 0 ? groupedSources : [{ id: videoId, source }]).map((item) => [item.source, item.id])
+                    )}
                     size={20}
                     isPremium={isPremium}
                   />
@@ -439,6 +496,10 @@ function PlayerContent() {
                     currentSource={currentSourceId || source || ''}
                     currentResolution={detectedResolution}
                     sourceResolutions={sourceResolutions}
+                    sourceSectionCollapsed={isSourceSectionCollapsed}
+                    onSourceSectionCollapseChange={setIsSourceSectionCollapsed}
+                    episodeSectionCollapsed={isEpisodeSectionCollapsed}
+                    onEpisodeSectionCollapseChange={setIsEpisodeSectionCollapsed}
                     onSourceChange={(newSource) => {
                       const params = new URLSearchParams();
                       params.set('id', String(newSource.id));

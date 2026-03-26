@@ -10,9 +10,33 @@
     z-index: 2147483647 !important;
     background: black !important;
     border-radius: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    --kvideo-web-scale: 1;
 }
 
-/* Ensure controls and video take up full space in web fullscreen */
+.kvideo-container.is-web-fullscreen .kvideo-web-fullscreen-stage {
+    position: relative !important;
+    width: min(calc(100vw * var(--kvideo-web-scale)), calc(100vh * var(--kvideo-web-scale) * 16 / 9)) !important;
+    height: min(calc(100vh * var(--kvideo-web-scale)), calc(100vw * var(--kvideo-web-scale) * 9 / 16)) !important;
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+}
+
+.kvideo-container.is-web-fullscreen .web-fullscreen-size-full {
+    --kvideo-web-scale: 1;
+}
+
+.kvideo-container.is-web-fullscreen .web-fullscreen-size-large {
+    --kvideo-web-scale: 0.92;
+}
+
+.kvideo-container.is-web-fullscreen .web-fullscreen-size-focused {
+    --kvideo-web-scale: 0.84;
+}
+
+/* Ensure video takes up full space in web fullscreen */
 .kvideo-container.is-web-fullscreen video {
     width: 100% !important;
     height: 100% !important;

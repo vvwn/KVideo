@@ -14,6 +14,8 @@ interface DesktopMoreMenuProps {
     onMouseEnter: () => void;
     onMouseLeave: () => void;
     onCopyLink: (type?: 'original' | 'proxy') => void;
+    webFullscreenSize: 'full' | 'large' | 'focused';
+    onCycleWebFullscreenSize: () => void;
     containerRef: React.RefObject<HTMLDivElement | null>;
     isRotated?: boolean;
 }
@@ -25,6 +27,8 @@ export function DesktopMoreMenu({
     onMouseEnter,
     onMouseLeave,
     onCopyLink,
+    webFullscreenSize,
+    onCycleWebFullscreenSize,
     containerRef,
     isRotated = false
 }: DesktopMoreMenuProps) {
@@ -68,6 +72,11 @@ export function DesktopMoreMenu({
         keyword: '关键词',
         heuristic: '智能(Beta)',
         aggressive: '激进'
+    };
+    const WEB_FULLSCREEN_SIZE_LABELS: Record<'full' | 'large' | 'focused', string> = {
+        full: '铺满窗口',
+        large: '大窗模式',
+        focused: '聚焦影院',
     };
 
     const [isFullscreen, setIsFullscreen] = React.useState(false);
@@ -344,6 +353,20 @@ export function DesktopMoreMenu({
                         <Icons.Maximize size={isRotated ? 10 : 12} className="text-[var(--text-color-secondary)]" />
                     </button>
                 </div>
+            </div>
+
+            <div className={`${isRotated ? 'px-2 py-1.5' : 'px-3 py-2 sm:px-4 sm:py-2.5'} flex items-center justify-between gap-4`}>
+                <div className={`flex items-center gap-2 text-[var(--text-color)] ${isRotated ? 'text-[11px]' : 'text-xs sm:text-sm'}`}>
+                    <Icons.Target size={isRotated ? 14 : 16} className="sm:w-[18px] sm:h-[18px]" />
+                    <span>网页全屏尺寸</span>
+                </div>
+                <button
+                    onClick={onCycleWebFullscreenSize}
+                    className={`flex items-center gap-1 bg-[var(--glass-bg)] border border-[var(--glass-border)] text-[var(--text-color)] rounded-[var(--radius-2xl)] outline-none hover:border-[var(--accent-color)] hover:bg-[color-mix(in_srgb,var(--accent-color)_5%,transparent)] transition-all cursor-pointer whitespace-nowrap ${isRotated ? 'px-1.5 py-0.5 text-[9px]' : 'px-2 sm:px-2.5 py-1 sm:py-1.5 text-[10px] sm:text-xs'}`}
+                >
+                    <span>{WEB_FULLSCREEN_SIZE_LABELS[webFullscreenSize]}</span>
+                    <Icons.ChevronDown size={isRotated ? 10 : 12} className="text-[var(--text-color-secondary)]" />
+                </button>
             </div>
 
             {/* Show Mode Indicator Switch */}

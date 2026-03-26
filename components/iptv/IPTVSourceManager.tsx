@@ -7,6 +7,7 @@
 import { useState } from 'react';
 import { useIPTVStore, type IPTVSource } from '@/lib/store/iptv-store';
 import { Icons } from '@/components/ui/Icon';
+import { hasPermission } from '@/lib/store/auth-store';
 
 const inputProps = {
   spellCheck: false,
@@ -21,12 +22,14 @@ const inputProps = {
 
 export function IPTVSourceManager() {
   const { sources, addSource, removeSource, updateSource, refreshSources, isLoading } = useIPTVStore();
+  const canUseBuiltinSources = hasPermission('iptv_builtin_sources');
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
   const [showAdd, setShowAdd] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editUrl, setEditUrl] = useState('');
+  const visibleSources = sources.filter((source) => canUseBuiltinSources || source.kind !== 'builtin');
 
   const handleAdd = () => {
     if (!name.trim() || !url.trim()) return;
@@ -73,7 +76,7 @@ export function IPTVSourceManager() {
         <div className="flex gap-2 flex-wrap">
           <button
             onClick={() => refreshSources()}
-            disabled={isLoading || sources.length === 0}
+            disabled={isLoading || visibleSources.length === 0}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-[var(--radius-2xl)] text-[var(--text-color-secondary)] hover:text-[var(--accent-color)] hover:border-[var(--accent-color)]/30 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Icons.RefreshCw size={12} className={isLoading ? 'animate-spin' : ''} />
@@ -127,13 +130,13 @@ export function IPTVSourceManager() {
       )}
 
       {/* Source List */}
-      {sources.length === 0 ? (
+      {visibleSources.length === 0 ? (
         <div className="text-center py-8 text-sm text-[var(--text-color-secondary)]">
           暂无直播源，请添加 M3U 或 JSON 播放列表链接
         </div>
       ) : (
         <div className="space-y-2">
-          {sources.map((source) => (
+          {visibleSources.map((source) => (
             <div
               key={source.id}
               className="p-3 bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-[var(--radius-2xl)]"
@@ -175,24 +178,39 @@ export function IPTVSourceManager() {
                 /* Display Mode */
                 <div className="flex items-center justify-between">
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-[var(--text-color)] truncate">{source.name}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium text-[var(--text-color)] truncate">{source.name}</p>
+                      {source.kind === 'builtin' && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-[var(--accent-color)]/10 text-[var(--accent-color)]">
+                          内置
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-[var(--text-color-secondary)] truncate">{source.url}</p>
                   </div>
                   <div className="flex items-center gap-1 ml-2 flex-shrink-0">
-                    <button
-                      onClick={() => startEdit(source)}
-                      className="p-1.5 text-[var(--text-color-secondary)] hover:text-[var(--accent-color)] transition-colors cursor-pointer"
-                      title="编辑"
-                    >
-                      <Icons.Edit size={14} />
-                    </button>
-                    <button
-                      onClick={() => removeSource(source.id)}
-                      className="p-1.5 text-[var(--text-color-secondary)] hover:text-red-500 transition-colors cursor-pointer"
-                      title="删除"
-                    >
-                      <Icons.Trash size={14} />
-                    </button>
+                    {source.kind !== 'builtin' ? (
+                      <>
+                        <button
+                          onClick={() => startEdit(source)}
+                          className="p-1.5 text-[var(--text-color-secondary)] hover:text-[var(--accent-color)] transition-colors cursor-pointer"
+                          title="编辑"
+                        >
+                          <Icons.Edit size={14} />
+                        </button>
+                        <button
+                          onClick={() => removeSource(source.id)}
+                          className="p-1.5 text-[var(--text-color-secondary)] hover:text-red-500 transition-colors cursor-pointer"
+                          title="删除"
+                        >
+                          <Icons.Trash size={14} />
+                        </button>
+                      </>
+                    ) : (
+                      <span className="text-[10px] text-[var(--text-color-secondary)] px-2">
+                        环境变量提供
+                      </span>
+                    )}
                   </div>
                 </div>
               )}

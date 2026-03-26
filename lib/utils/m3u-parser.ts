@@ -22,6 +22,60 @@ export interface M3UPlaylist {
   groups: string[];
 }
 
+export interface PlaylistReference {
+  kind: 'playlist' | 'config';
+  name: string;
+  url: string;
+  httpUserAgent?: string;
+  httpReferrer?: string;
+}
+
+function resolveReferenceUrl(baseUrl: string | undefined, target: string): string {
+  if (!baseUrl) return target;
+  try {
+    return new URL(target, baseUrl).toString();
+  } catch {
+    return target;
+  }
+}
+
+export function extractPlaylistReferences(content: string, baseUrl?: string): PlaylistReference[] {
+  try {
+    const data = JSON.parse(content);
+    if (!data || typeof data !== 'object') return [];
+
+    const references: PlaylistReference[] = [];
+
+    if (Array.isArray((data as any).lives)) {
+      for (const entry of (data as any).lives) {
+        if (!entry || typeof entry.url !== 'string') continue;
+        references.push({
+          kind: 'playlist',
+          name: entry.name || entry.title || '直播源',
+          url: resolveReferenceUrl(baseUrl, entry.url),
+          httpUserAgent: entry.ua || entry.userAgent || entry.http_user_agent || entry.httpUserAgent,
+          httpReferrer: entry.referer || entry.referrer || entry.http_referrer || entry.httpReferrer,
+        });
+      }
+    }
+
+    if (Array.isArray((data as any).urls)) {
+      for (const entry of (data as any).urls) {
+        if (!entry || typeof entry.url !== 'string') continue;
+        references.push({
+          kind: 'config',
+          name: entry.name || entry.title || '配置源',
+          url: resolveReferenceUrl(baseUrl, entry.url),
+        });
+      }
+    }
+
+    return references;
+  } catch {
+    return [];
+  }
+}
+
 /**
  * Try to parse content as JSON channel list.
  * Supports formats:
@@ -36,7 +90,7 @@ function tryParseJSON(content: string): M3UPlaylist | null {
     if (Array.isArray(data)) {
       channels = data;
     } else if (data && typeof data === 'object') {
-      channels = data.channels || data.list || data.items || [];
+      channels = data.channels || data.list || data.items || data.data || [];
       if (!Array.isArray(channels)) return null;
     } else {
       return null;
@@ -48,18 +102,18 @@ function tryParseJSON(content: string): M3UPlaylist | null {
     const first = channels[0];
     if (!first || typeof first !== 'object') return null;
     // Must have at least a name and url
-    if (!first.name && !first.title && !first.channel_name) return null;
-    if (!first.url && !first.stream_url && !first.src) return null;
+    if (!first.name && !first.title && !first.channel_name && !first.channel) return null;
+    if (!first.url && !first.stream_url && !first.src && !first.link && !first.stream) return null;
 
     const groupSet = new Set<string>();
     const parsed: M3UChannel[] = [];
 
     for (const ch of channels) {
-      const name = ch.name || ch.title || ch.channel_name || '';
-      const url = ch.url || ch.stream_url || ch.src || '';
+      const name = ch.name || ch.title || ch.channel_name || ch.channel || '';
+      const url = ch.url || ch.stream_url || ch.src || ch.link || ch.stream || '';
       if (!name || !url) continue;
 
-      const group = ch.group || ch.group_title || ch.category || '';
+      const group = ch.group || ch.group_title || ch.groupName || ch.category || '';
       if (group) groupSet.add(group);
 
       parsed.push({
@@ -70,7 +124,7 @@ function tryParseJSON(content: string): M3UPlaylist | null {
         tvgId: ch.tvg_id || ch.tvgId || undefined,
         tvgName: ch.tvg_name || ch.tvgName || undefined,
         httpUserAgent: ch.http_user_agent || ch.httpUserAgent || ch.user_agent || undefined,
-        httpReferrer: ch.http_referrer || ch.httpReferrer || ch.referer || undefined,
+        httpReferrer: ch.http_referrer || ch.httpReferrer || ch.referer || ch.referrer || undefined,
       });
     }
 

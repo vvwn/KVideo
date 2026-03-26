@@ -4,13 +4,14 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { parseM3U, groupChannelsByName, type M3UChannel } from '@/lib/utils/m3u-parser';
+import { parseM3U, groupChannelsByName, extractPlaylistReferences, type M3UChannel } from '@/lib/utils/m3u-parser';
 
 export interface IPTVSource {
   id: string;
   name: string;
   url: string;
   addedAt: number;
+  kind?: 'custom' | 'builtin';
 }
 
 interface IPTVState {
@@ -26,6 +27,7 @@ interface IPTVActions {
   addSource: (name: string, url: string) => void;
   removeSource: (id: string) => void;
   updateSource: (id: string, updates: Partial<Pick<IPTVSource, 'name' | 'url'>>) => void;
+  syncBuiltinSources: (entries: Array<{ name: string; url: string }>) => void;
   refreshSources: () => Promise<void>;
   setLoading: (loading: boolean) => void;
 }
@@ -33,6 +35,8 @@ interface IPTVActions {
 interface IPTVStore extends IPTVState, IPTVActions {}
 
 const MAX_CONCURRENT = 3;
+const MAX_REFERENCE_DEPTH = 3;
+const MAX_REFERENCES_PER_FILE = 25;
 
 async function fetchWithConcurrencyLimit<T>(
   tasks: (() => Promise<T>)[],
@@ -53,6 +57,84 @@ async function fetchWithConcurrencyLimit<T>(
   return results;
 }
 
+function buildIPTVProxyUrl(url: string, ua?: string, referer?: string): string {
+  const params = new URLSearchParams({ url });
+  if (ua) params.set('ua', ua);
+  if (referer) params.set('referer', referer);
+  return `/api/iptv?${params.toString()}`;
+}
+
+async function loadPlaylistChannels(
+  rootSource: IPTVSource,
+  target: { name: string; url: string; httpUserAgent?: string; httpReferrer?: string },
+  visited: Set<string>,
+  depth: number = 0
+): Promise<{ channels: M3UChannel[]; groups: string[] }> {
+  if (!target.url || visited.has(target.url) || depth > MAX_REFERENCE_DEPTH) {
+    return { channels: [], groups: [] };
+  }
+
+  visited.add(target.url);
+
+  try {
+    const res = await fetch(buildIPTVProxyUrl(target.url, target.httpUserAgent, target.httpReferrer));
+    if (!res.ok) {
+      return { channels: [], groups: [] };
+    }
+
+    const text = await res.text();
+    const playlist = parseM3U(text);
+    const directChannels = playlist.channels.map((channel) => ({
+      ...channel,
+      group: channel.group || (depth > 0 ? target.name : channel.group),
+      sourceId: rootSource.id,
+      sourceName: rootSource.name,
+      httpUserAgent: channel.httpUserAgent || target.httpUserAgent,
+      httpReferrer: channel.httpReferrer || target.httpReferrer,
+    }));
+
+    const directGroups = new Set(playlist.groups);
+    if (depth > 0 && directChannels.some((channel) => channel.group === target.name)) {
+      directGroups.add(target.name);
+    }
+
+    const references = extractPlaylistReferences(text, target.url).slice(0, MAX_REFERENCES_PER_FILE);
+    if (references.length === 0) {
+      return { channels: directChannels, groups: Array.from(directGroups).sort() };
+    }
+
+    const nestedResults = await fetchWithConcurrencyLimit(
+      references.map((reference) => async () =>
+        loadPlaylistChannels(
+          rootSource,
+          {
+            name: reference.name,
+            url: reference.url,
+            httpUserAgent: reference.httpUserAgent,
+            httpReferrer: reference.httpReferrer,
+          },
+          visited,
+          depth + 1
+        )
+      ),
+      MAX_CONCURRENT
+    );
+
+    const mergedChannels = [...directChannels, ...nestedResults.flatMap((result) => result.channels)];
+    const mergedGroups = new Set<string>([
+      ...Array.from(directGroups),
+      ...nestedResults.flatMap((result) => result.groups),
+    ]);
+
+    return {
+      channels: mergedChannels,
+      groups: Array.from(mergedGroups).sort(),
+    };
+  } catch {
+    return { channels: [], groups: [] };
+  }
+}
+
 export const useIPTVStore = create<IPTVStore>()(
   persist(
     (set, get) => ({
@@ -66,7 +148,7 @@ export const useIPTVStore = create<IPTVStore>()(
       addSource: (name, url) => {
         const id = `iptv-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
         set((state) => ({
-          sources: [...state.sources, { id, name, url, addedAt: Date.now() }],
+          sources: [...state.sources, { id, name, url, addedAt: Date.now(), kind: 'custom' }],
         }));
       },
 
@@ -82,6 +164,27 @@ export const useIPTVStore = create<IPTVStore>()(
             s.id === id ? { ...s, ...updates } : s
           ),
         }));
+      },
+
+      syncBuiltinSources: (entries) => {
+        set((state) => {
+          const customSources = state.sources.filter((source) => source.kind !== 'builtin');
+          const existingUrls = new Set(customSources.map((source) => source.url));
+          const builtinSources = entries
+            .filter((entry) => entry.url.trim())
+            .filter((entry) => !existingUrls.has(entry.url))
+            .map((entry, index) => ({
+              id: `iptv-builtin-${index}-${entry.url}`,
+              name: entry.name || `直播源 ${index + 1}`,
+              url: entry.url,
+              addedAt: Date.now(),
+              kind: 'builtin' as const,
+            }));
+
+          return {
+            sources: [...customSources, ...builtinSources],
+          };
+        });
       },
 
       refreshSources: async () => {
@@ -101,16 +204,13 @@ export const useIPTVStore = create<IPTVStore>()(
 
           const tasks = sources.map((source) => async () => {
             try {
-              const res = await fetch('/api/iptv?' + new URLSearchParams({ url: source.url }));
-              if (!res.ok) return;
-              const text = await res.text();
-              const playlist = parseM3U(text);
+              const playlist = await loadPlaylistChannels(
+                source,
+                { name: source.name, url: source.url },
+                new Set<string>()
+              );
               // Tag channels with source info
-              const tagged = playlist.channels.map(ch => ({
-                ...ch,
-                sourceId: source.id,
-                sourceName: source.name,
-              }));
+              const tagged = playlist.channels;
               allChannels.push(...tagged);
               playlist.groups.forEach((g) => allGroups.add(g));
               // Track per-source
@@ -155,7 +255,7 @@ export const useIPTVStore = create<IPTVStore>()(
     {
       name: 'kvideo-iptv-store',
       partialize: (state) => ({
-        sources: state.sources,
+        sources: state.sources.filter((source) => source.kind !== 'builtin'),
         lastRefreshed: state.lastRefreshed,
         // Don't persist cachedChannels/cachedGroups - they can be very large
         // and will be re-fetched on page load

@@ -4,7 +4,7 @@
  * IPTV Page - Live TV channel viewer with M3U source management
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useIPTVStore } from '@/lib/store/iptv-store';
 import { IPTVSourceManager } from '@/components/iptv/IPTVSourceManager';
 import { IPTVChannelGrid } from '@/components/iptv/IPTVChannelGrid';
@@ -15,12 +15,35 @@ import Link from 'next/link';
 import type { M3UChannel } from '@/lib/utils/m3u-parser';
 
 export default function IPTVPage() {
-  const { sources, cachedChannels, cachedGroups, cachedChannelsBySource, refreshSources, isLoading, lastRefreshed } = useIPTVStore();
+  const { sources, cachedChannels, cachedChannelsBySource, refreshSources, isLoading, lastRefreshed } = useIPTVStore();
   const [activeChannel, setActiveChannel] = useState<M3UChannel | null>(null);
   const [showManager, setShowManager] = useState(false);
 
-  const canManageSources = hasPermission('source_management');
+  const canManageSources = hasPermission('iptv_source_management');
   const canAccessIPTV = hasPermission('iptv_access');
+  const canUseBuiltinSources = hasPermission('iptv_builtin_sources');
+  const visibleSources = useMemo(
+    () => sources.filter((source) => canUseBuiltinSources || source.kind !== 'builtin'),
+    [sources, canUseBuiltinSources]
+  );
+  const visibleSourceIds = useMemo(() => new Set(visibleSources.map((source) => source.id)), [visibleSources]);
+  const visibleChannels = useMemo(
+    () => cachedChannels.filter((channel) => !channel.sourceId || visibleSourceIds.has(channel.sourceId)),
+    [cachedChannels, visibleSourceIds]
+  );
+  const visibleGroups = useMemo(
+    () => Array.from(new Set(visibleChannels.map((channel) => channel.group).filter(Boolean))).sort() as string[],
+    [visibleChannels]
+  );
+  const visibleChannelsBySource = useMemo(
+    () =>
+      Object.fromEntries(
+        visibleSources
+          .map((source) => [source.id, cachedChannelsBySource[source.id]])
+          .filter(([, data]) => !!data)
+      ),
+    [visibleSources, cachedChannelsBySource]
+  );
 
   // If auth is configured and user doesn't have iptv_access, show access denied
   if (!canAccessIPTV && getSession()) {
@@ -65,7 +88,7 @@ export default function IPTVPage() {
                     直播
                   </h1>
                   <p className="text-sm text-[var(--text-color-secondary)]">
-                    {cachedChannels.length > 0 ? `${cachedChannels.length} 个频道` : 'IPTV 直播频道'}
+                    {visibleChannels.length > 0 ? `${visibleChannels.length} 个频道` : 'IPTV 直播频道'}
                   </p>
                 </div>
               </div>
@@ -101,12 +124,12 @@ export default function IPTVPage() {
           {!isLoading && (
             <div className="bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-[var(--radius-2xl)] shadow-[var(--shadow-sm)] p-6">
               <IPTVChannelGrid
-                channels={cachedChannels}
-                groups={cachedGroups}
+                channels={visibleChannels}
+                groups={visibleGroups}
                 onSelect={setActiveChannel}
                 activeChannel={activeChannel}
-                channelsBySource={cachedChannelsBySource}
-                sources={sources}
+                channelsBySource={visibleChannelsBySource}
+                sources={visibleSources}
               />
             </div>
           )}
@@ -117,10 +140,10 @@ export default function IPTVPage() {
           <IPTVPlayer
             channel={activeChannel}
             onClose={() => setActiveChannel(null)}
-            channels={cachedChannels}
+            channels={visibleChannels}
             onChannelChange={setActiveChannel}
-            channelsBySource={cachedChannelsBySource}
-            sources={sources}
+            channelsBySource={visibleChannelsBySource}
+            sources={visibleSources}
           />
         )}
       </div>

@@ -94,9 +94,13 @@ export function useVideoPlayer(
       }
 
       const data = await response.json();
+      const sourceUnavailable =
+        response.status === 404 ||
+        (response.status === 400 && typeof data?.error === 'string' && data.error.toLowerCase().includes('source')) ||
+        (typeof data?.error === 'string' && data.error.includes('视频源不可用'));
 
       if (!response.ok) {
-        if (response.status === 404) {
+        if (sourceUnavailable) {
           setVideoError(data.error || '该视频源不可用。请返回并尝试其他来源。');
           setLoading(false);
           onSourceUnavailableRef.current?.();

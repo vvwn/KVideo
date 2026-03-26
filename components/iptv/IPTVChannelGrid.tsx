@@ -71,6 +71,15 @@ export function IPTVChannelGrid({ channels, groups, onSelect, activeChannel, cha
 
   const visibleChannels = filteredChannels.slice(0, visibleCount);
   const hasMore = visibleCount < filteredChannels.length;
+  const orderedSources = useMemo(() => {
+    if (!sources || !selectedSourceId) return sources || [];
+    const selected = sources.find((source) => source.id === selectedSourceId);
+    return selected ? [selected, ...sources.filter((source) => source.id !== selectedSourceId)] : sources;
+  }, [sources, selectedSourceId]);
+  const orderedGroups = useMemo(() => {
+    if (!selectedGroup) return effectiveGroups;
+    return [selectedGroup, ...effectiveGroups.filter((group) => group !== selectedGroup)];
+  }, [effectiveGroups, selectedGroup]);
 
   if (channels.length === 0) {
     return (
@@ -84,91 +93,89 @@ export function IPTVChannelGrid({ channels, groups, onSelect, activeChannel, cha
 
   return (
     <div className="space-y-4">
-      {/* Search + Group Filter */}
-      <div className="flex gap-3">
-        <div className="relative flex-1">
-          <Icons.Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-color-secondary)]" />
-          <input
-            type="text"
-            placeholder="搜索频道..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-[var(--radius-2xl)] text-sm text-[var(--text-color)] placeholder:text-[var(--text-color-secondary)]/50 focus:outline-none focus:border-[var(--accent-color)]"
-          />
+      <div className="sticky top-4 z-10 -mx-2 px-2 py-2 rounded-[var(--radius-2xl)] border border-[var(--glass-border)] bg-[color-mix(in_srgb,var(--bg-color)_88%,transparent)] backdrop-blur-md">
+        <div className="flex gap-3">
+          <div className="relative flex-1">
+            <Icons.Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-color-secondary)]" />
+            <input
+              type="text"
+              placeholder="搜索频道..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-[var(--radius-2xl)] text-sm text-[var(--text-color)] placeholder:text-[var(--text-color-secondary)]/50 focus:outline-none focus:border-[var(--accent-color)]"
+            />
+          </div>
         </div>
+
+        <div className="mt-3 text-xs text-[var(--text-color-secondary)]">
+          {filteredChannels.length === effectiveChannels.length
+            ? `共 ${effectiveChannels.length} 个频道`
+            : `${filteredChannels.length} / ${effectiveChannels.length} 个频道`}
+        </div>
+
+        {hasMultipleSources && sources && (
+          <div className="mt-3 flex gap-1.5 flex-wrap">
+            <button
+              onClick={() => setSelectedSourceId(null)}
+              className={`px-3 py-1.5 text-xs font-medium rounded-[var(--radius-2xl)] border transition-all cursor-pointer ${
+                selectedSourceId === null
+                  ? 'bg-[var(--accent-color)] border-[var(--accent-color)] text-white'
+                  : 'bg-[var(--glass-bg)] border-[var(--glass-border)] text-[var(--text-color)] hover:border-[var(--accent-color)]/30'
+              }`}
+            >
+              全部
+            </button>
+            {orderedSources.map((source) => {
+              const sourceData = channelsBySource![source.id];
+              if (!sourceData) return null;
+              return (
+                <button
+                  key={source.id}
+                  onClick={() => setSelectedSourceId(source.id === selectedSourceId ? null : source.id)}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-[var(--radius-2xl)] border transition-all cursor-pointer ${
+                    selectedSourceId === source.id
+                      ? 'bg-[var(--accent-color)] border-[var(--accent-color)] text-white'
+                      : 'bg-[var(--glass-bg)] border-[var(--glass-border)] text-[var(--text-color)] hover:border-[var(--accent-color)]/30'
+                  }`}
+                >
+                  {source.name} ({sourceData.channels.length})
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {effectiveGroups.length > 0 && (
+          <div className="mt-3 flex gap-1.5 flex-wrap">
+            <button
+              onClick={() => setSelectedGroup(null)}
+              className={`px-3 py-1 text-xs rounded-[var(--radius-2xl)] border transition-all cursor-pointer ${
+                selectedGroup === null
+                  ? 'bg-[var(--accent-color)] border-[var(--accent-color)] text-white'
+                  : 'bg-[var(--glass-bg)] border-[var(--glass-border)] text-[var(--text-color)] hover:border-[var(--accent-color)]/30'
+              }`}
+            >
+              全部 ({effectiveChannels.length})
+            </button>
+            {orderedGroups.map((group) => {
+              const count = effectiveChannels.filter((channel) => channel.group === group).length;
+              return (
+                <button
+                  key={group}
+                  onClick={() => setSelectedGroup(group === selectedGroup ? null : group)}
+                  className={`px-3 py-1 text-xs rounded-[var(--radius-2xl)] border transition-all cursor-pointer ${
+                    selectedGroup === group
+                      ? 'bg-[var(--accent-color)] border-[var(--accent-color)] text-white'
+                      : 'bg-[var(--glass-bg)] border-[var(--glass-border)] text-[var(--text-color)] hover:border-[var(--accent-color)]/30'
+                  }`}
+                >
+                  {group} ({count})
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
-
-      {/* Channel count */}
-      <div className="text-xs text-[var(--text-color-secondary)]">
-        {filteredChannels.length === effectiveChannels.length
-          ? `共 ${effectiveChannels.length} 个频道`
-          : `${filteredChannels.length} / ${effectiveChannels.length} 个频道`}
-      </div>
-
-      {/* Source Tabs (only when multiple sources) */}
-      {hasMultipleSources && sources && (
-        <div className="flex gap-1.5 flex-wrap">
-          <button
-            onClick={() => setSelectedSourceId(null)}
-            className={`px-3 py-1.5 text-xs font-medium rounded-[var(--radius-2xl)] border transition-all cursor-pointer ${
-              selectedSourceId === null
-                ? 'bg-[var(--accent-color)] border-[var(--accent-color)] text-white'
-                : 'bg-[var(--glass-bg)] border-[var(--glass-border)] text-[var(--text-color)] hover:border-[var(--accent-color)]/30'
-            }`}
-          >
-            全部
-          </button>
-          {sources.map((source) => {
-            const sourceData = channelsBySource![source.id];
-            if (!sourceData) return null;
-            return (
-              <button
-                key={source.id}
-                onClick={() => setSelectedSourceId(source.id === selectedSourceId ? null : source.id)}
-                className={`px-3 py-1.5 text-xs font-medium rounded-[var(--radius-2xl)] border transition-all cursor-pointer ${
-                  selectedSourceId === source.id
-                    ? 'bg-[var(--accent-color)] border-[var(--accent-color)] text-white'
-                    : 'bg-[var(--glass-bg)] border-[var(--glass-border)] text-[var(--text-color)] hover:border-[var(--accent-color)]/30'
-                }`}
-              >
-                {source.name} ({sourceData.channels.length})
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Group Tabs */}
-      {effectiveGroups.length > 0 && (
-        <div className="flex gap-1.5 flex-wrap">
-          <button
-            onClick={() => setSelectedGroup(null)}
-            className={`px-3 py-1 text-xs rounded-[var(--radius-2xl)] border transition-all cursor-pointer ${
-              selectedGroup === null
-                ? 'bg-[var(--accent-color)] border-[var(--accent-color)] text-white'
-                : 'bg-[var(--glass-bg)] border-[var(--glass-border)] text-[var(--text-color)] hover:border-[var(--accent-color)]/30'
-            }`}
-          >
-            全部 ({effectiveChannels.length})
-          </button>
-          {effectiveGroups.map((group) => {
-            const count = effectiveChannels.filter((c) => c.group === group).length;
-            return (
-              <button
-                key={group}
-                onClick={() => setSelectedGroup(group === selectedGroup ? null : group)}
-                className={`px-3 py-1 text-xs rounded-[var(--radius-2xl)] border transition-all cursor-pointer ${
-                  selectedGroup === group
-                    ? 'bg-[var(--accent-color)] border-[var(--accent-color)] text-white'
-                    : 'bg-[var(--glass-bg)] border-[var(--glass-border)] text-[var(--text-color)] hover:border-[var(--accent-color)]/30'
-                }`}
-              >
-                {group} ({count})
-              </button>
-            );
-          })}
-        </div>
-      )}
 
       {/* Channel Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">

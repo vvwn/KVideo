@@ -9,15 +9,28 @@ export const runtime = 'edge';
 
 export async function GET(request: NextRequest) {
   const url = request.nextUrl.searchParams.get('url');
+  const customUa = request.nextUrl.searchParams.get('ua');
+  const customReferer = request.nextUrl.searchParams.get('referer');
 
   if (!url) {
     return NextResponse.json({ error: 'Missing url parameter' }, { status: 400 });
   }
 
   try {
+    const parsedUrl = new URL(url);
+    let refererOrigin = `${parsedUrl.protocol}//${parsedUrl.host}`;
+    if (customReferer) {
+      try {
+        refererOrigin = new URL(customReferer).origin;
+      } catch {
+        refererOrigin = `${parsedUrl.protocol}//${parsedUrl.host}`;
+      }
+    }
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; KVideo/1.0)',
+        'User-Agent': customUa || 'Mozilla/5.0 (compatible; KVideo/1.0)',
+        ...(customReferer ? { 'Referer': customReferer } : {}),
+        'Origin': refererOrigin,
       },
     });
 

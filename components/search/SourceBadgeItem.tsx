@@ -31,6 +31,7 @@ export function SourceBadgeItem({
 
   return (
     <button
+      type="button"
       ref={innerRef}
       onClick={handleClick}
       onFocus={onFocus}

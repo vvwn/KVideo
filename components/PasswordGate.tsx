@@ -13,7 +13,6 @@ import { Lock } from 'lucide-react';
  */
 function syncIPTVSources(rawValue: string) {
     const iptvStore = useIPTVStore.getState();
-    const existingUrls = new Set(iptvStore.sources.map(s => s.url));
 
     let entries: { name: string; url: string }[] = [];
 
@@ -34,12 +33,7 @@ function syncIPTVSources(rawValue: string) {
         }
     }
 
-    // Add new sources that don't already exist
-    for (const entry of entries) {
-        if (!existingUrls.has(entry.url)) {
-            iptvStore.addSource(entry.name || '直播源', entry.url);
-        }
-    }
+    iptvStore.syncBuiltinSources(entries);
 }
 
 /**

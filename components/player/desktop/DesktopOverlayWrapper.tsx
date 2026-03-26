@@ -4,8 +4,9 @@ import { useDesktopPlayerState } from '../hooks/useDesktopPlayerState';
 
 interface DesktopOverlayWrapperProps {
     data: ReturnType<typeof useDesktopPlayerState>['data'];
-    actions: ReturnType<typeof useDesktopPlayerState>['actions'];
     showControls: boolean;
+    isFullscreen: boolean;
+    fullscreenClock: string;
     isRotated?: boolean;
     onTogglePlay: () => void;
     onSkipForward: () => void;
@@ -25,13 +26,16 @@ interface DesktopOverlayWrapperProps {
     onSpeedChange: (speed: number) => void;
     onSpeedMenuMouseEnter: () => void;
     onSpeedMenuMouseLeave: () => void;
+    webFullscreenSize: 'full' | 'large' | 'focused';
+    onCycleWebFullscreenSize: () => void;
     containerRef: React.RefObject<HTMLDivElement | null>;
 }
 
 export function DesktopOverlayWrapper({
     data,
-    actions,
     showControls,
+    isFullscreen,
+    fullscreenClock,
     isRotated = false,
     onTogglePlay,
     onSkipForward,
@@ -50,6 +54,8 @@ export function DesktopOverlayWrapper({
     onSpeedChange,
     onSpeedMenuMouseEnter,
     onSpeedMenuMouseLeave,
+    webFullscreenSize,
+    onCycleWebFullscreenSize,
     containerRef,
 }: DesktopOverlayWrapperProps) {
     const {
@@ -79,6 +85,8 @@ export function DesktopOverlayWrapper({
             showToast={showToast}
             toastMessage={toastMessage}
             showControls={showControls}
+            isFullscreen={isFullscreen}
+            fullscreenClock={fullscreenClock}
             onTogglePlay={onTogglePlay}
             onSkipForward={onSkipForward}
             onSkipBackward={onSkipBackward}
@@ -95,6 +103,8 @@ export function DesktopOverlayWrapper({
             onSpeedChange={onSpeedChange}
             onSpeedMenuMouseEnter={onSpeedMenuMouseEnter}
             onSpeedMenuMouseLeave={onSpeedMenuMouseLeave}
+            webFullscreenSize={webFullscreenSize}
+            onCycleWebFullscreenSize={onCycleWebFullscreenSize}
             containerRef={containerRef}
             isRotated={isRotated}
         />

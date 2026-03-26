@@ -161,6 +161,7 @@ export function SourceBadgeList({ sources, selectedSources, onToggleSource }: So
 
         {hasOverflow && (
           <button
+            type="button"
             onClick={toggleExpanded}
             className="mt-2 text-xs text-[var(--text-color-secondary)] hover:text-[var(--accent-color)]
                      flex items-center gap-1 transition-colors self-start cursor-pointer"

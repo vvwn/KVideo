@@ -8,9 +8,12 @@ interface DesktopControlsProps {
     isPlaying: boolean;
     currentTime: number;
     duration: number;
+    bufferedTime: number;
     volume: number;
     isMuted: boolean;
     isFullscreen: boolean;
+    isNativeFullscreen: boolean;
+    isWebFullscreen: boolean;
 
 
     showVolumeBar: boolean;
@@ -25,6 +28,8 @@ interface DesktopControlsProps {
     onVolumeChange: (e: React.MouseEvent<HTMLDivElement>) => void;
     onVolumeMouseDown: (e: React.MouseEvent<HTMLDivElement>) => void;
     onToggleFullscreen: () => void;
+    onToggleNativeFullscreen: () => void;
+    onToggleWebFullscreen: () => void;
     onTogglePictureInPicture: () => void;
     onShowAirPlayMenu: () => void;
     onShowCastMenu: () => void;
@@ -39,6 +44,7 @@ export function DesktopControls(props: DesktopControlsProps) {
         showControls,
         currentTime,
         duration,
+        bufferedTime,
         progressBarRef,
         onProgressClick,
         onProgressMouseDown,
@@ -60,6 +66,7 @@ export function DesktopControls(props: DesktopControlsProps) {
                 progressBarRef={progressBarRef}
                 currentTime={currentTime}
                 duration={duration}
+                bufferedTime={bufferedTime}
                 onProgressClick={onProgressClick}
                 onProgressMouseDown={onProgressMouseDown}
                 onProgressTouchStart={onProgressTouchStart}

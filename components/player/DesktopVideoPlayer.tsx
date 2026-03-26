@@ -16,6 +16,11 @@ import { useIsIOS, useIsMobile } from '@/lib/hooks/mobile/useDeviceDetection';
 import { useDoubleTap } from '@/lib/hooks/mobile/useDoubleTap';
 import './web-fullscreen.css';
 
+type WebFullscreenSize = 'full' | 'large' | 'focused';
+
+const WEB_FULLSCREEN_SIZE_KEY = 'kvideo-web-fullscreen-size';
+const WEB_FULLSCREEN_SIZE_ORDER: WebFullscreenSize[] = ['full', 'large', 'focused'];
+
 interface DesktopVideoPlayerProps {
   src: string;
   poster?: string;
@@ -54,6 +59,12 @@ export function DesktopVideoPlayer({
   const { fullscreenType: settingsFullscreenType } = usePlayerSettings();
   const isIOS = useIsIOS();
   const isMobile = useIsMobile();
+  const [webFullscreenSize, setWebFullscreenSize] = React.useState<WebFullscreenSize>(() => {
+    if (typeof window === 'undefined') return 'full';
+    const saved = localStorage.getItem(WEB_FULLSCREEN_SIZE_KEY);
+    return saved === 'large' || saved === 'focused' || saved === 'full' ? saved : 'full';
+  });
+  const [fullscreenClock, setFullscreenClock] = React.useState('');
 
   // Detect actual video resolution
   const videoResolution = useVideoResolution(refs.videoRef);
@@ -66,7 +77,7 @@ export function DesktopVideoPlayer({
   }, [videoResolution, onResolutionDetected]);
 
   // Danmaku
-  const { danmakuEnabled, setDanmakuEnabled, comments: danmakuComments } = useDanmaku({
+  const { danmakuEnabled, comments: danmakuComments } = useDanmaku({
     videoTitle,
     episodeName,
     episodeIndex: currentEpisodeIndex,
@@ -101,7 +112,32 @@ export function DesktopVideoPlayer({
     : settingsFullscreenType;
 
   // Check if we need to force landscape (iOS + Fullscreen + Portrait)
-  const shouldForceLandscape = data.isFullscreen && fullscreenType === 'window' && isIOS && !isLandscape;
+  const shouldForceLandscape = data.fullscreenMode === 'window' && isIOS && !isLandscape;
+
+  React.useEffect(() => {
+    localStorage.setItem(WEB_FULLSCREEN_SIZE_KEY, webFullscreenSize);
+  }, [webFullscreenSize]);
+
+  React.useEffect(() => {
+    if (!data.isFullscreen) {
+      setFullscreenClock('');
+      return;
+    }
+
+    const formatter = new Intl.DateTimeFormat('zh-CN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+
+    const updateClock = () => {
+      setFullscreenClock(formatter.format(new Date()));
+    };
+
+    updateClock();
+    const interval = window.setInterval(updateClock, 30000);
+    return () => window.clearInterval(interval);
+  }, [data.isFullscreen]);
 
   // Initialize HLS Player
   useHlsPlayer({
@@ -123,15 +159,15 @@ export function DesktopVideoPlayer({
 
   const {
     setShowControls,
+    setBufferedTime,
     setIsLoading,
-    setCurrentTime,
-    setDuration,
   } = actions;
 
   // Reset loading state and show spinner when source changes
   React.useEffect(() => {
     setIsLoading(true);
-  }, [src, setIsLoading]);
+    setBufferedTime(0);
+  }, [src, setBufferedTime, setIsLoading]);
 
   const logic = useDesktopPlayerLogic({
     src,
@@ -147,7 +183,7 @@ export function DesktopVideoPlayer({
   });
 
   // Auto-skip intro/outro and auto-next episode
-  const { isOutroActive, isTransitioningToNextEpisode } = useAutoSkip({
+  const { isTransitioningToNextEpisode } = useAutoSkip({
     videoRef,
     currentTime,
     duration,
@@ -176,9 +212,21 @@ export function DesktopVideoPlayer({
     handlePause,
     handleTimeUpdateEvent,
     handleLoadedMetadata,
+    handleProgressEvent,
     handleVideoError,
     handleVolumeWheel,
   } = logic;
+
+  const cycleWebFullscreenSize = React.useCallback(() => {
+    setWebFullscreenSize((current) => {
+      const currentIndex = WEB_FULLSCREEN_SIZE_ORDER.indexOf(current);
+      return WEB_FULLSCREEN_SIZE_ORDER[(currentIndex + 1) % WEB_FULLSCREEN_SIZE_ORDER.length];
+    });
+  }, []);
+
+  const stageClassName = data.fullscreenMode === 'window'
+    ? `kvideo-stage kvideo-web-fullscreen-stage web-fullscreen-size-${webFullscreenSize}`
+    : 'kvideo-stage absolute inset-0';
 
   // Mobile double-tap gesture for skip forward/backward
   const { handleTap } = useDoubleTap({
@@ -205,16 +253,17 @@ export function DesktopVideoPlayer({
   return (
     <div
       ref={containerRef}
-      className={`kvideo-container relative aspect-video bg-black rounded-[var(--radius-2xl)] group ${data.isFullscreen && fullscreenType === 'window' ? 'is-web-fullscreen' : ''
+      className={`kvideo-container relative aspect-video bg-black rounded-[var(--radius-2xl)] group ${data.fullscreenMode === 'window' ? 'is-web-fullscreen' : ''
         } ${shouldForceLandscape ? 'force-landscape' : ''}`}
       onMouseMove={() => { handleMouseMove(); }}
       onMouseLeave={() => isPlaying && setShowControls(false)}
       onWheel={handleVolumeWheel}
     >
-      {/* Clipping Wrapper for video and overlays - Restores the 'Liquid Glass' rounded look */}
-      <div className={`absolute inset-0 overflow-hidden pointer-events-none ${data.isFullscreen && fullscreenType === 'window' ? 'rounded-0' : 'rounded-[var(--radius-2xl)]'
-        }`}>
-        <div className="absolute inset-0 pointer-events-auto">
+      <div className={stageClassName}>
+        {/* Clipping Wrapper for video and overlays - Restores the 'Liquid Glass' rounded look */}
+        <div className={`absolute inset-0 overflow-hidden pointer-events-none ${data.fullscreenMode === 'window' ? 'rounded-0' : 'rounded-[var(--radius-2xl)]'
+          }`}>
+          <div className="absolute inset-0 pointer-events-auto">
           {/* Video Element */}
           <video
             ref={videoRef}
@@ -227,10 +276,11 @@ export function DesktopVideoPlayer({
             onPause={handlePause}
             onTimeUpdate={handleTimeUpdateEvent}
             onLoadedMetadata={handleLoadedMetadata}
+            onProgress={handleProgressEvent}
             onError={handleVideoError}
             onWaiting={() => setIsLoading(true)}
             onCanPlay={() => setIsLoading(false)}
-            onClick={!isMobile ? (e) => {
+            onClick={!isMobile ? () => {
               togglePlay();
             } : undefined}
             onTouchStart={isMobile ? handleTap : undefined}
@@ -259,8 +309,9 @@ export function DesktopVideoPlayer({
 
           <DesktopOverlayWrapper
             data={data}
-            actions={actions}
             showControls={data.showControls}
+            isFullscreen={data.isFullscreen}
+            fullscreenClock={fullscreenClock}
             isRotated={shouldForceLandscape}
             onTogglePlay={togglePlay}
             onSkipForward={logic.skipForward}
@@ -294,17 +345,19 @@ export function DesktopVideoPlayer({
             onSpeedChange={logic.changePlaybackSpeed}
             onSpeedMenuMouseEnter={logic.clearSpeedMenuTimeout}
             onSpeedMenuMouseLeave={logic.startSpeedMenuTimeout}
+            webFullscreenSize={webFullscreenSize}
+            onCycleWebFullscreenSize={cycleWebFullscreenSize}
             // Portal container
             containerRef={containerRef}
           />
 
-          <DesktopControlsWrapper
-            src={src}
-            data={data}
-            actions={actions}
-            logic={logic}
-            refs={refs}
-          />
+            <DesktopControlsWrapper
+              src={src}
+              data={data}
+              logic={logic}
+              refs={refs}
+            />
+          </div>
         </div>
       </div>
     </div>
