@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ThemeSwitcher } from '@/components/ThemeSwitcher';
 import { Icons } from '@/components/ui/Icon';
 import { siteConfig } from '@/lib/config/site-config';
 import { getSession, clearSession, hasPermission, type AuthSession } from '@/lib/store/auth-store';
+import { useRuntimeFeatures } from '@/components/RuntimeFeaturesProvider';
 import { LogOut } from 'lucide-react';
 
 interface NavbarProps {
@@ -16,11 +17,8 @@ interface NavbarProps {
 
 export function Navbar({ onReset, isPremiumMode = false }: NavbarProps) {
     const settingsHref = isPremiumMode ? '/premium/settings' : '/settings';
-    const [session, setSessionState] = useState<AuthSession | null>(null);
-
-    useEffect(() => {
-        setSessionState(getSession());
-    }, []);
+    const [session] = useState<AuthSession | null>(() => getSession());
+    const { iptvEnabled } = useRuntimeFeatures();
 
     const handleLogout = () => {
         clearSession();
@@ -61,7 +59,7 @@ export function Navbar({ onReset, isPremiumMode = false }: NavbarProps) {
 
                         <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
                             {/* IPTV Link - only show if user has iptv_access or no auth configured */}
-                            {hasPermission('iptv_access') && (
+                            {iptvEnabled && hasPermission('iptv_access') && (
                             <Link
                                 href="/iptv"
                                 className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-[var(--radius-full)] bg-[var(--glass-bg)] border border-[var(--glass-border)] text-[var(--text-color)] hover:bg-[color-mix(in_srgb,var(--accent-color)_10%,transparent)] transition-all duration-200 cursor-pointer"

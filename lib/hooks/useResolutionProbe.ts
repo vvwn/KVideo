@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import type { VideoSource } from '@/lib/types';
+import { settingsStore } from '@/lib/store/settings-store';
 
 export interface ResolutionInfo {
   width: number;
@@ -30,6 +32,25 @@ function setCache(source: string, id: string | number, info: ResolutionInfo) {
 interface VideoToProbe {
   id: string | number;
   source: string;
+}
+
+function getSourceConfigsForProbe(videos: VideoToProbe[]): VideoSource[] {
+  if (typeof window === 'undefined' || videos.length === 0) {
+    return [];
+  }
+
+  const configuredSources = new Map<string, VideoSource>();
+  const { sources, premiumSources } = settingsStore.getSettings();
+
+  [...sources, ...premiumSources].forEach((source) => {
+    if (source?.id) {
+      configuredSources.set(source.id, source);
+    }
+  });
+
+  return Array.from(new Set(videos.map((video) => video.source)))
+    .map((sourceId) => configuredSources.get(sourceId))
+    .filter((source): source is VideoSource => !!source);
 }
 
 /**
@@ -81,10 +102,11 @@ export function useResolutionProbe(videos: VideoToProbe[]): {
 
     (async () => {
       try {
+        const sourceConfigs = getSourceConfigsForProbe(needProbe);
         const response = await fetch('/api/probe-resolution', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ videos: needProbe }),
+          body: JSON.stringify({ videos: needProbe, sourceConfigs }),
           signal: controller.signal,
         });
 
@@ -119,9 +141,9 @@ export function useResolutionProbe(videos: VideoToProbe[]): {
             } catch { /* ignore */ }
           }
         }
-      } catch (e: any) {
-        if (e?.name !== 'AbortError') {
-          console.warn('[ResolutionProbe] Failed:', e);
+      } catch (error: unknown) {
+        if (!(error instanceof DOMException && error.name === 'AbortError')) {
+          console.warn('[ResolutionProbe] Failed:', error);
         }
       } finally {
         setIsProbing(false);

@@ -10,6 +10,7 @@ import { useDesktopShortcuts } from './desktop/useDesktopShortcuts';
 import { useDesktopPlayerState } from './useDesktopPlayerState';
 import { getCopyUrl } from '../utils/urlUtils';
 import { useCastControls } from './desktop/useCastControls';
+import { DEFAULT_SEEK_STEP_SECONDS } from '@/lib/store/settings-store';
 
 type DesktopPlayerState = ReturnType<typeof useDesktopPlayerState>;
 
@@ -24,6 +25,7 @@ interface UseDesktopPlayerLogicProps {
     actions: DesktopPlayerState['actions'];
     fullscreenType?: 'native' | 'window';
     isForceLandscape?: boolean;
+    seekStepSeconds?: number;
 }
 
 export function useDesktopPlayerLogic({
@@ -36,7 +38,8 @@ export function useDesktopPlayerLogic({
     data,
     actions,
     fullscreenType = 'native',
-    isForceLandscape = false
+    isForceLandscape = false,
+    seekStepSeconds = DEFAULT_SEEK_STEP_SECONDS
 }: UseDesktopPlayerLogicProps) {
     const {
         videoRef, containerRef, progressBarRef, volumeBarRef,
@@ -112,7 +115,7 @@ export function useDesktopPlayerLogic({
     });
 
     const skipControls = useSkipControls({
-        videoRef, duration, setCurrentTime,
+        videoRef, duration, seekStepSeconds, setCurrentTime,
         showSkipForwardIndicator, showSkipBackwardIndicator,
         skipForwardAmount, skipBackwardAmount,
         setShowSkipForwardIndicator, setShowSkipBackwardIndicator,

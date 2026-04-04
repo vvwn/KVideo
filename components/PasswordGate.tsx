@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { getSession, setSession } from '@/lib/store/auth-store';
 import { useSubscriptionSync } from '@/lib/hooks/useSubscriptionSync';
-import { settingsStore } from '@/lib/store/settings-store';
+import { hasStoredAppSetting, settingsStore } from '@/lib/store/settings-store';
 import { useIPTVStore } from '@/lib/store/iptv-store';
 import { Lock } from 'lucide-react';
 
@@ -49,6 +49,18 @@ function syncMergeSources(rawValue: string) {
         settingsStore.saveSettings({
             ...settings,
             searchDisplayMode: 'grouped',
+        });
+    }
+}
+
+function syncDanmakuApiUrl(rawValue: string) {
+    if (!rawValue || hasStoredAppSetting('danmakuApiUrl')) return;
+
+    const settings = settingsStore.getSettings();
+    if (settings.danmakuApiUrl !== rawValue) {
+        settingsStore.saveSettings({
+            ...settings,
+            danmakuApiUrl: rawValue,
         });
     }
 }
@@ -104,6 +116,10 @@ export function PasswordGate({ children, hasAuth: initialHasAuth }: { children: 
                     // Sync merge sources setting from env
                     if (data.mergeSources) {
                         syncMergeSources(data.mergeSources);
+                    }
+
+                    if (data.danmakuApiUrl) {
+                        syncDanmakuApiUrl(data.danmakuApiUrl);
                     }
 
                     // Re-evaluate lock status with confirmed server state

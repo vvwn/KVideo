@@ -8,12 +8,41 @@ import { NextRequest } from 'next/server';
 import { getSourceById } from '@/lib/api/video-sources';
 import { getVideoDetail } from '@/lib/api/detail-api';
 import { fetchWithTimeout } from '@/lib/api/http-utils';
+import type { VideoSource } from '@/lib/types';
 
 export const runtime = 'edge';
 
 interface ProbeRequest {
   id: string | number;
   source: string;
+}
+
+function isValidSourceConfig(value: unknown): value is VideoSource {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const source = value as Partial<VideoSource>;
+  return typeof source.id === 'string' &&
+    typeof source.name === 'string' &&
+    typeof source.baseUrl === 'string' &&
+    typeof source.searchPath === 'string' &&
+    typeof source.detailPath === 'string';
+}
+
+function buildSourceConfigMap(rawConfigs: unknown): Map<string, VideoSource> {
+  const configs = new Map<string, VideoSource>();
+  if (!Array.isArray(rawConfigs)) {
+    return configs;
+  }
+
+  for (const config of rawConfigs) {
+    if (isValidSourceConfig(config)) {
+      configs.set(config.id, config);
+    }
+  }
+
+  return configs;
 }
 
 function getResolutionLabel(width: number, height: number): { label: string; color: string } {
@@ -39,13 +68,13 @@ function parseResolutionFromM3u8(content: string): { width: number; height: numb
   return resolutions.sort((a, b) => (b.width * b.height) - (a.width * a.height))[0];
 }
 
-async function probeOne(video: ProbeRequest): Promise<{
+async function probeOne(video: ProbeRequest, providedConfigs: Map<string, VideoSource>): Promise<{
   id: string | number;
   source: string;
   resolution: { width: number; height: number; label: string; color: string } | null;
 }> {
   try {
-    const sourceConfig = getSourceById(video.source);
+    const sourceConfig = providedConfigs.get(video.source) || getSourceById(video.source);
     if (!sourceConfig) return { id: video.id, source: video.source, resolution: null };
 
     // 1. Get detail to find first episode URL
@@ -114,6 +143,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const videos: ProbeRequest[] = body.videos;
+    const sourceConfigs = buildSourceConfigMap(body.sourceConfigs);
 
     if (!Array.isArray(videos) || videos.length === 0) {
       return new Response(JSON.stringify({ error: 'Missing videos array' }), {
@@ -136,7 +166,7 @@ export async function POST(request: NextRequest) {
           while (index < batch.length) {
             const current = batch[index++];
             try {
-              const result = await probeOne(current);
+              const result = await probeOne(current, sourceConfigs);
               const line = `data: ${JSON.stringify(result)}\n\n`;
               controller.enqueue(encoder.encode(line));
             } catch {
@@ -160,7 +190,7 @@ export async function POST(request: NextRequest) {
         'Connection': 'keep-alive',
       },
     });
-  } catch (error) {
+  } catch {
     return new Response(JSON.stringify({ error: 'Internal error' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },

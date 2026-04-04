@@ -11,11 +11,13 @@ import { IPTVChannelGrid } from '@/components/iptv/IPTVChannelGrid';
 import { IPTVPlayer } from '@/components/iptv/IPTVPlayer';
 import { Icons } from '@/components/ui/Icon';
 import { hasPermission, getSession } from '@/lib/store/auth-store';
+import { useRuntimeFeatures } from '@/components/RuntimeFeaturesProvider';
 import Link from 'next/link';
 import type { M3UChannel } from '@/lib/utils/m3u-parser';
 
 export default function IPTVPage() {
-  const { sources, cachedChannels, cachedChannelsBySource, refreshSources, isLoading, lastRefreshed } = useIPTVStore();
+  const { iptvEnabled, restrictionSummary } = useRuntimeFeatures();
+  const { sources, cachedChannels, cachedChannelsBySource, refreshSources, isLoading } = useIPTVStore();
   const [activeChannel, setActiveChannel] = useState<M3UChannel | null>(null);
   const [showManager, setShowManager] = useState(false);
 
@@ -45,6 +47,17 @@ export default function IPTVPage() {
     [visibleSources, cachedChannelsBySource]
   );
 
+  // Auto-refresh on first load if we have sources but no cached channels
+  useEffect(() => {
+    if (!iptvEnabled) {
+      return;
+    }
+
+    if (sources.length > 0 && cachedChannels.length === 0 && !isLoading) {
+      refreshSources();
+    }
+  }, [iptvEnabled, sources.length, cachedChannels.length, isLoading, refreshSources]);
+
   // If auth is configured and user doesn't have iptv_access, show access denied
   if (!canAccessIPTV && getSession()) {
     return (
@@ -59,12 +72,20 @@ export default function IPTVPage() {
     );
   }
 
-  // Auto-refresh on first load if we have sources but no cached channels
-  useEffect(() => {
-    if (sources.length > 0 && cachedChannels.length === 0 && !isLoading) {
-      refreshSources();
-    }
-  }, [sources.length, cachedChannels.length, isLoading, refreshSources]);
+  if (!iptvEnabled) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[var(--bg-color)] bg-[image:var(--bg-image)]">
+        <div className="max-w-xl mx-auto px-6 py-8 text-center bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-[var(--radius-2xl)] shadow-[var(--shadow-sm)]">
+          <Icons.TV size={48} className="mx-auto mb-4 text-[var(--text-color-secondary)] opacity-40" />
+          <p className="text-[var(--text-color)] font-medium mb-2">当前部署已禁用 IPTV</p>
+          <p className="text-sm text-[var(--text-color-secondary)] mb-4">
+            {restrictionSummary}
+          </p>
+          <Link href="/" className="text-sm text-[var(--accent-color)] hover:underline">返回首页</Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
       <div className="min-h-screen bg-[var(--bg-color)] bg-[image:var(--bg-image)] bg-fixed">

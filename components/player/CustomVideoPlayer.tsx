@@ -18,6 +18,7 @@ interface CustomVideoPlayerProps {
   // Danmaku props
   videoTitle?: string;
   episodeName?: string;
+  isPremium?: boolean;
   // Resolution callback
   onResolutionDetected?: (info: import('./hooks/useVideoResolution').VideoResolutionInfo) => void;
 }

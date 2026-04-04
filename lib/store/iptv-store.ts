@@ -83,7 +83,7 @@ async function loadPlaylistChannels(
     }
 
     const text = await res.text();
-    const playlist = parseM3U(text);
+    const playlist = parseM3U(text, target.url);
     const directChannels = playlist.channels.map((channel) => ({
       ...channel,
       group: channel.group || (depth > 0 ? target.name : channel.group),

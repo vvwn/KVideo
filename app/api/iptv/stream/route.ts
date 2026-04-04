@@ -6,6 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { getRuntimeFeatures } from '@/lib/server/runtime-features';
 
 export const runtime = 'edge';
 
@@ -91,6 +92,18 @@ const CORS_HEADERS = {
 };
 
 export async function GET(request: NextRequest) {
+  const runtimeFeatures = getRuntimeFeatures();
+
+  if (!runtimeFeatures.iptvEnabled) {
+    return NextResponse.json(
+      {
+        error: 'IPTV relay is disabled on this deployment',
+        message: runtimeFeatures.restrictionSummary,
+      },
+      { status: 403 }
+    );
+  }
+
   const url = request.nextUrl.searchParams.get('url');
   const customUa = request.nextUrl.searchParams.get('ua');
   const customReferer = request.nextUrl.searchParams.get('referer');

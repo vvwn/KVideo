@@ -1,6 +1,5 @@
 import React from 'react';
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AutoSync } from '@/components/AutoSync'; // <-- 引入了自动同步组件
@@ -14,9 +13,14 @@ import { AdKeywordsInjector } from "@/components/AdKeywordsInjector";
 import { BackToTop } from "@/components/ui/BackToTop";
 import { ScrollPositionManager } from "@/components/ScrollPositionManager";
 import { LocaleProvider } from "@/components/LocaleProvider";
+import { RuntimeFeaturesProvider } from "@/components/RuntimeFeaturesProvider";
+import { VideoTogetherController } from '@/components/VideoTogetherController';
+import { getRuntimeFeatures } from "@/lib/server/runtime-features";
 import fs from 'fs';
 import path from 'path';
 
+const DEFAULT_VIDEOTOGETHER_SCRIPT_URL =
+  'https://fastly.jsdelivr.net/gh/VideoTogether/VideoTogether@latest/release/extension.website.user.js';
 
 // Server Component specifically for reading env/file (async for best practices)
 async function AdKeywordsWrapper() {
@@ -57,16 +61,6 @@ async function AdKeywordsWrapper() {
   return <AdKeywordsInjector keywords={keywords} />;
 }
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
   title: siteConfig.title,
   description: siteConfig.description,
@@ -80,6 +74,12 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const runtimeFeatures = getRuntimeFeatures();
+  const videoTogetherScriptUrl =
+    process.env.VIDEOTOGETHER_SCRIPT_URL?.trim() || DEFAULT_VIDEOTOGETHER_SCRIPT_URL;
+  const videoTogetherSettingUrl = process.env.VIDEOTOGETHER_SETTING_URL?.trim();
+  const videoTogetherEnvEnabled = process.env.VIDEOTOGETHER_ENABLED !== 'false';
+
   return (
     <html lang="zh-CN" suppressHydrationWarning>
       <head>
@@ -96,25 +96,32 @@ export default function RootLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className="antialiased"
         suppressHydrationWarning
       >
         <ThemeProvider>
-          {/* 加入自动同步组件，它会在后台默默工作，我们放在 ThemeProvider 内部的最前面 */}
-          <AutoSync />
-          <LocaleProvider />
+          <RuntimeFeaturesProvider initialFeatures={runtimeFeatures}>
+            <VideoTogetherController
+              envEnabled={videoTogetherEnvEnabled}
+              scriptUrl={videoTogetherScriptUrl}
+              settingUrl={videoTogetherSettingUrl}
+            />
+            {/* 加入自动同步组件，它会在后台默默工作，我们放在 ThemeProvider 内部的最前面 */}
+            <AutoSync />
+            <LocaleProvider />
 
-          <TVProvider>
-            <TVNavigationInitializer />
-            <PasswordGate hasAuth={!!(process.env.ADMIN_PASSWORD || process.env.ACCOUNTS || process.env.ACCESS_PASSWORD)}>
-              <AdKeywordsWrapper />
-              {children}
-              <BackToTop />
-              <ScrollPositionManager />
-            </PasswordGate>
-          </TVProvider>
-          <Analytics />
-          <ServiceWorkerRegister />
+            <TVProvider>
+              <TVNavigationInitializer />
+              <PasswordGate hasAuth={!!(process.env.ADMIN_PASSWORD || process.env.ACCOUNTS || process.env.ACCESS_PASSWORD)}>
+                <AdKeywordsWrapper />
+                {children}
+                <BackToTop />
+                <ScrollPositionManager />
+              </PasswordGate>
+            </TVProvider>
+            <Analytics />
+            <ServiceWorkerRegister />
+          </RuntimeFeaturesProvider>
         </ThemeProvider>
 
         {/* ARIA Live Region for Screen Reader Announcements */}

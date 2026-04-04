@@ -27,11 +27,13 @@ export default function PremiumSettingsPage() {
         searchDisplayMode,
         fullscreenType,
         proxyMode,
+        seekStepSeconds,
         rememberScrollPosition,
         handleRealtimeLatencyChange,
         handleSearchDisplayModeChange,
         handleFullscreenTypeChange,
         handleProxyModeChange,
+        handleSeekStepSecondsChange,
         handleRememberScrollPositionChange,
         locale,
         handleLocaleChange,
@@ -79,6 +81,8 @@ export default function PremiumSettingsPage() {
                     onFullscreenTypeChange={handleFullscreenTypeChange}
                     proxyMode={proxyMode}
                     onProxyModeChange={handleProxyModeChange}
+                    seekStepSeconds={seekStepSeconds}
+                    onSeekStepSecondsChange={handleSeekStepSecondsChange}
                     danmakuApiUrl={danmakuApiUrl}
                     onDanmakuApiUrlChange={handleDanmakuApiUrlChange}
                     danmakuOpacity={danmakuOpacity}

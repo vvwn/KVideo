@@ -9,6 +9,7 @@ import { createPortal } from 'react-dom';
 
 interface DesktopMoreMenuProps {
     showMoreMenu: boolean;
+    isPremium?: boolean;
     isProxied?: boolean;
     onToggleMoreMenu: () => void;
     onMouseEnter: () => void;
@@ -22,6 +23,7 @@ interface DesktopMoreMenuProps {
 
 export function DesktopMoreMenu({
     showMoreMenu,
+    isPremium = false,
     isProxied = false,
     onToggleMoreMenu,
     onMouseEnter,
@@ -60,7 +62,7 @@ export function DesktopMoreMenu({
         setDanmakuFontSize,
         danmakuDisplayArea,
         setDanmakuDisplayArea,
-    } = usePlayerSettings();
+    } = usePlayerSettings(isPremium);
 
     const buttonRef = React.useRef<HTMLButtonElement>(null);
     const menuRef = React.useRef<HTMLDivElement>(null);

@@ -24,6 +24,7 @@ export default function SettingsPage() {
     realtimeLatency,
     searchDisplayMode,
     fullscreenType,
+    seekStepSeconds,
     isAddModalOpen,
     isExportModalOpen,
     isImportModalOpen,
@@ -54,8 +55,11 @@ export default function SettingsPage() {
     handleFullscreenTypeChange,
     proxyMode,
     handleProxyModeChange,
+    handleSeekStepSecondsChange,
     rememberScrollPosition,
+    videoTogetherEnabled,
     handleRememberScrollPositionChange,
+    handleVideoTogetherEnabledChange,
     locale,
     handleLocaleChange,
     danmakuApiUrl,
@@ -86,6 +90,10 @@ export default function SettingsPage() {
             onFullscreenTypeChange={handleFullscreenTypeChange}
             proxyMode={proxyMode}
             onProxyModeChange={handleProxyModeChange}
+            seekStepSeconds={seekStepSeconds}
+            onSeekStepSecondsChange={handleSeekStepSecondsChange}
+            videoTogetherEnabled={videoTogetherEnabled}
+            onVideoTogetherEnabledChange={handleVideoTogetherEnabledChange}
             danmakuApiUrl={danmakuApiUrl}
             onDanmakuApiUrlChange={handleDanmakuApiUrlChange}
             danmakuOpacity={danmakuOpacity}
