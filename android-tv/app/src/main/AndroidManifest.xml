@@ -6,7 +6,7 @@
 
     <uses-feature
         android:name="android.software.leanback"
-        android:required="true" />
+        android:required="false" />
 
     <uses-feature
         android:name="android.hardware.touchscreen"
@@ -28,7 +28,8 @@
             android:name=".MainActivity"
             android:configChanges="orientation|screenSize|keyboardHidden"
             android:exported="true"
-            android:screenOrientation="landscape">
+            android:screenOrientation="landscape"
+            android:windowSoftInputMode="adjustResize">
 
             <!-- Leanback launcher (Android TV home) -->
             <intent-filter>

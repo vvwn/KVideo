@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.view.KeyEvent
 import android.view.View
 import android.view.WindowManager
+import android.view.inputmethod.EditorInfo
 import android.webkit.WebChromeClient
 import android.webkit.WebSettings
 import android.webkit.WebView
@@ -58,6 +59,24 @@ class MainActivity : ComponentActivity() {
 
         saveButton.setOnClickListener {
             openConfiguredUrl()
+        }
+        urlInput.setOnEditorActionListener { _, actionId, event ->
+            val isKeyboardConfirmAction = actionId == EditorInfo.IME_NULL ||
+                actionId == EditorInfo.IME_ACTION_DONE ||
+                actionId == EditorInfo.IME_ACTION_GO ||
+                actionId == EditorInfo.IME_ACTION_SEND ||
+                actionId == EditorInfo.IME_ACTION_NEXT
+            val isEnterKey = event?.action == KeyEvent.ACTION_DOWN && (
+                event.keyCode == KeyEvent.KEYCODE_ENTER ||
+                    event.keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER
+                )
+
+            if (isKeyboardConfirmAction || isEnterKey) {
+                openConfiguredUrl()
+                true
+            } else {
+                false
+            }
         }
 
         webView.apply {
