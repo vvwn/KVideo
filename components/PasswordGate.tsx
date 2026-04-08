@@ -65,6 +65,29 @@ function syncDanmakuApiUrl(rawValue: string) {
     }
 }
 
+function applyRuntimeConfig(data: {
+    subscriptionSources?: string;
+    iptvSources?: string;
+    mergeSources?: string;
+    danmakuApiUrl?: string;
+}) {
+    if (data.subscriptionSources) {
+        settingsStore.syncEnvSubscriptions(data.subscriptionSources);
+    }
+
+    if (data.iptvSources) {
+        syncIPTVSources(data.iptvSources);
+    }
+
+    if (data.mergeSources) {
+        syncMergeSources(data.mergeSources);
+    }
+
+    if (data.danmakuApiUrl) {
+        syncDanmakuApiUrl(data.danmakuApiUrl);
+    }
+}
+
 export function PasswordGate({ children, hasAuth: initialHasAuth }: { children: React.ReactNode, hasAuth: boolean }) {
     // Enable background subscription syncing globally
     useSubscriptionSync();
@@ -102,25 +125,7 @@ export function PasswordGate({ children, hasAuth: initialHasAuth }: { children: 
                 if (mounted) {
                     setHasAuth(data.hasAuth);
                     setPersistSession(data.persistSession);
-
-                    // Sync subscriptions
-                    if (data.subscriptionSources) {
-                        settingsStore.syncEnvSubscriptions(data.subscriptionSources);
-                    }
-
-                    // Sync IPTV sources from env
-                    if (data.iptvSources) {
-                        syncIPTVSources(data.iptvSources);
-                    }
-
-                    // Sync merge sources setting from env
-                    if (data.mergeSources) {
-                        syncMergeSources(data.mergeSources);
-                    }
-
-                    if (data.danmakuApiUrl) {
-                        syncDanmakuApiUrl(data.danmakuApiUrl);
-                    }
+                    applyRuntimeConfig(data);
 
                     // Re-evaluate lock status with confirmed server state
                     const confirmLocked = data.hasAuth && !isAuthenticated;
@@ -149,6 +154,7 @@ export function PasswordGate({ children, hasAuth: initialHasAuth }: { children: 
             const data = await res.json();
 
             if (data.valid) {
+                applyRuntimeConfig(data);
                 setSession({
                     profileId: data.profileId,
                     name: data.name,

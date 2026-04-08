@@ -26,9 +26,10 @@
 
         <activity
             android:name=".MainActivity"
-            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:configChanges="orientation|screenSize|keyboardHidden|screenLayout|smallestScreenSize"
             android:exported="true"
             android:screenOrientation="landscape"
+            android:supportsPictureInPicture="true"
             android:windowSoftInputMode="adjustResize">
 
             <!-- Leanback launcher (Android TV home) -->

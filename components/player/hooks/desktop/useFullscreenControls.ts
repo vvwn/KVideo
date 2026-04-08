@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo } from 'react';
 import type { FullscreenMode } from '../useDesktopPlayerState';
 
+interface AndroidPiPBridge {
+    isPictureInPictureSupported?: () => boolean;
+    enterPictureInPicture?: (width: number, height: number) => boolean;
+}
+
 interface UseFullscreenControlsProps {
     containerRef: React.RefObject<HTMLDivElement | null>;
     videoRef: React.RefObject<HTMLVideoElement | null>;
@@ -53,19 +58,48 @@ export function useFullscreenControls({
         (document as any).msFullscreenElement
     ), []);
 
+    const getAndroidPiPBridge = useCallback((): AndroidPiPBridge | null => {
+        if (typeof window === 'undefined') return null;
+
+        const bridge = (window as Window & { KVideoAndroid?: AndroidPiPBridge }).KVideoAndroid;
+        if (!bridge) return null;
+
+        return bridge;
+    }, []);
+
+    const requestAndroidPictureInPicture = useCallback(() => {
+        const bridge = getAndroidPiPBridge();
+        const video = videoRef.current;
+        if (!bridge || !video || typeof bridge.enterPictureInPicture !== 'function') {
+            return false;
+        }
+
+        const width = video.videoWidth || containerRef.current?.clientWidth || 16;
+        const height = video.videoHeight || containerRef.current?.clientHeight || 9;
+
+        try {
+            return bridge.enterPictureInPicture(width, height) !== false;
+        } catch (error) {
+            console.error('Android Picture-in-Picture bridge failed:', error);
+            return false;
+        }
+    }, [containerRef, getAndroidPiPBridge, videoRef]);
+
     useEffect(() => {
         if (typeof document !== 'undefined') {
-            const hasNativePiP = 'pictureInPictureEnabled' in document;
+            const hasNativePiP = Boolean((document as any).pictureInPictureEnabled);
             const hasWebkitPiP = videoRef.current && (
                 'webkitSupportsPresentationMode' in (videoRef.current as any) ||
                 'webkitPresentationMode' in (videoRef.current as any)
             );
-            setIsPiPSupported(hasNativePiP || !!hasWebkitPiP);
+            const androidBridge = getAndroidPiPBridge();
+            const hasAndroidPiPBridge = Boolean(androidBridge?.isPictureInPictureSupported?.());
+            setIsPiPSupported(hasNativePiP || !!hasWebkitPiP || hasAndroidPiPBridge);
         }
         if (typeof window !== 'undefined') {
             setIsAirPlaySupported('WebKitPlaybackTargetAvailabilityEvent' in window);
         }
-    }, [setIsPiPSupported, setIsAirPlaySupported, videoRef]);
+    }, [getAndroidPiPBridge, setIsPiPSupported, setIsAirPlaySupported, videoRef]);
 
     const exitNativeFullscreen = useCallback(async () => {
         try {
@@ -259,15 +293,20 @@ export function useFullscreenControls({
                 await document.exitPictureInPicture();
             } else if (video.webkitPresentationMode === 'picture-in-picture') {
                 video.webkitSetPresentationMode('inline');
-            } else if (video.requestPictureInPicture) {
+            } else if (video.requestPictureInPicture && (document as any).pictureInPictureEnabled) {
                 await video.requestPictureInPicture();
+            } else if (requestAndroidPictureInPicture()) {
+                return;
             } else if (video.webkitSupportsPresentationMode && video.webkitSupportsPresentationMode('picture-in-picture')) {
                 video.webkitSetPresentationMode('picture-in-picture');
             }
         } catch (error) {
+            if (requestAndroidPictureInPicture()) {
+                return;
+            }
             console.error('Failed to toggle Picture-in-Picture:', error);
         }
-    }, [videoRef, isPiPSupported]);
+    }, [isPiPSupported, requestAndroidPictureInPicture, videoRef]);
 
     const showAirPlayMenu = useCallback(() => {
         if (!videoRef.current || !isAirPlaySupported) return;

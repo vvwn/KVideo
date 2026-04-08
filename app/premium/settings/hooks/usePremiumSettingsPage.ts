@@ -36,26 +36,34 @@ export function usePremiumSettingsPage() {
     const [blockedCategories, setBlockedCategories] = useState<string[]>([]);
 
     useEffect(() => {
-        // Sources come from main settings store
-        const settings = settingsStore.getSettings();
-        setPremiumSources(settings.premiumSources || []);
-        setLocale(settings.locale);
+        const syncFromStores = () => {
+            const settings = settingsStore.getSettings();
+            const modeSettings = premiumModeSettingsStore.getSettings();
 
-        // Mode-specific settings come from premium mode settings store
-        const modeSettings = premiumModeSettingsStore.getSettings();
-        setRealtimeLatency(modeSettings.realtimeLatency);
-        setSearchDisplayMode(modeSettings.searchDisplayMode);
-        setFullscreenType(modeSettings.fullscreenType);
-        setProxyMode(modeSettings.proxyMode);
-        setSeekStepSeconds(modeSettings.seekStepSeconds);
-        setRememberScrollPosition(modeSettings.rememberScrollPosition);
-        setDanmakuApiUrl(modeSettings.danmakuApiUrl);
-        setDanmakuOpacity(modeSettings.danmakuOpacity);
-        setDanmakuFontSize(modeSettings.danmakuFontSize);
-        setDanmakuDisplayArea(modeSettings.danmakuDisplayArea);
+            setPremiumSources(settings.premiumSources || []);
+            setLocale(settings.locale);
+            setBlockedCategories(settings.blockedCategories || []);
 
-        // blockedCategories is global
-        setBlockedCategories(settings.blockedCategories || []);
+            setRealtimeLatency(modeSettings.realtimeLatency);
+            setSearchDisplayMode(modeSettings.searchDisplayMode);
+            setFullscreenType(modeSettings.fullscreenType);
+            setProxyMode(modeSettings.proxyMode);
+            setSeekStepSeconds(modeSettings.seekStepSeconds);
+            setRememberScrollPosition(modeSettings.rememberScrollPosition);
+            setDanmakuApiUrl(modeSettings.danmakuApiUrl);
+            setDanmakuOpacity(modeSettings.danmakuOpacity);
+            setDanmakuFontSize(modeSettings.danmakuFontSize);
+            setDanmakuDisplayArea(modeSettings.danmakuDisplayArea);
+        };
+
+        syncFromStores();
+        const unsubscribeSettings = settingsStore.subscribe(syncFromStores);
+        const unsubscribePremiumSettings = premiumModeSettingsStore.subscribe(syncFromStores);
+
+        return () => {
+            unsubscribeSettings();
+            unsubscribePremiumSettings();
+        };
     }, []);
 
     // --- Source management (uses main settingsStore) ---

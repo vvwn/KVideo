@@ -65,18 +65,25 @@ async function generateProfileId(password: string): Promise<string> {
   return hashArray.slice(0, 8).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-export async function GET() {
-  const hasAuth = !!(effectiveAdminPassword || ACCOUNTS);
+function getPublicAuthConfig() {
   const runtimeFeatures = getRuntimeFeatures();
 
-  return NextResponse.json({
-    hasAuth,
-    hasPremiumAuth: !!PREMIUM_PASSWORD,
+  return {
     persistSession: PERSIST_SESSION,
     subscriptionSources: SUBSCRIPTION_SOURCES,
     iptvSources: runtimeFeatures.iptvEnabled ? IPTV_SOURCES : '',
     mergeSources: MERGE_SOURCES,
     danmakuApiUrl: DANMAKU_API_URL,
+  };
+}
+
+export async function GET() {
+  const hasAuth = !!(effectiveAdminPassword || ACCOUNTS);
+
+  return NextResponse.json({
+    hasAuth,
+    hasPremiumAuth: !!PREMIUM_PASSWORD,
+    ...getPublicAuthConfig(),
   });
 }
 
@@ -119,7 +126,7 @@ export async function POST(request: NextRequest) {
         name: '管理员',
         role: 'super_admin',
         profileId,
-        persistSession: PERSIST_SESSION,
+        ...getPublicAuthConfig(),
       });
     }
 
@@ -133,7 +140,7 @@ export async function POST(request: NextRequest) {
           name: account.name,
           role: account.role,
           profileId,
-          persistSession: PERSIST_SESSION,
+          ...getPublicAuthConfig(),
           customPermissions: account.customPermissions.length > 0 ? account.customPermissions : undefined,
         });
       }
