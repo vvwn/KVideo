@@ -2,6 +2,71 @@ import { NextResponse } from 'next/server';
 
 export const runtime = 'edge';
 
+interface DoubanSubject {
+  id: string;
+  title: string;
+  cover?: string;
+  rate?: string;
+  url?: string;
+}
+
+interface DoubanRecommendResponse {
+  subjects?: DoubanSubject[];
+}
+
+interface ImdbInfo {
+  imdbRating: string | null;
+  imdbUrl: string | null;
+}
+
+function buildImdbSearchUrl(title: string): string {
+  return `https://www.imdb.com/find/?q=${encodeURIComponent(title)}&s=tt`;
+}
+
+async function fetchImdbInfo(title: string, type: string): Promise<ImdbInfo> {
+  const omdbApiKey = process.env.OMDB_API_KEY;
+
+  if (!omdbApiKey || !title) {
+    return {
+      imdbRating: null,
+      imdbUrl: buildImdbSearchUrl(title),
+    };
+  }
+
+  try {
+    const omdbType = type === 'tv' ? 'series' : 'movie';
+    const url = `https://www.omdbapi.com/?apikey=${encodeURIComponent(omdbApiKey)}&t=${encodeURIComponent(title)}&type=${omdbType}`;
+    const response = await fetch(url, {
+      next: { revalidate: 86400 }, // Cache for 24 hours
+    });
+
+    if (!response.ok) {
+      return {
+        imdbRating: null,
+        imdbUrl: buildImdbSearchUrl(title),
+      };
+    }
+
+    const data = await response.json() as { Response?: string; imdbRating?: string; imdbID?: string };
+    if (data?.Response === 'True') {
+      return {
+        imdbRating: data?.imdbRating && data.imdbRating !== 'N/A' ? data.imdbRating : null,
+        imdbUrl: data?.imdbID ? `https://www.imdb.com/title/${data.imdbID}/` : buildImdbSearchUrl(title),
+      };
+    }
+
+    return {
+      imdbRating: null,
+      imdbUrl: buildImdbSearchUrl(title),
+    };
+  } catch {
+    return {
+      imdbRating: null,
+      imdbUrl: buildImdbSearchUrl(title),
+    };
+  }
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const tag = searchParams.get('tag') || '热门';
@@ -24,13 +89,17 @@ export async function GET(request: Request) {
       throw new Error(`Douban API returned ${response.status}`);
     }
 
-    const data = await response.json();
+    const data = await response.json() as DoubanRecommendResponse;
 
-    // 转换图片链接使用代理
+    // 转换图片链接使用代理，并补充 IMDb 评分
     if (data.subjects && Array.isArray(data.subjects)) {
-      data.subjects = data.subjects.map((item: any) => ({
-        ...item,
-        cover: item.cover ? `/api/douban/image?url=${encodeURIComponent(item.cover)}` : item.cover,
+      data.subjects = await Promise.all(data.subjects.map(async (item) => {
+        const imdbInfo = await fetchImdbInfo(item.title, type);
+        return {
+          ...item,
+          cover: item.cover ? `/api/douban/image?url=${encodeURIComponent(item.cover)}` : item.cover,
+          ...imdbInfo,
+        };
       }));
     }
 
